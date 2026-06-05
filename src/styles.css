@@ -1119,10 +1119,35 @@ input[type="range"] {
 
 .timeline-event.playing .timeline-time {
   color: var(--lime);
+  text-shadow: 0 0 12px rgba(200, 255, 80, 0.75);
 }
 
 .timeline-event.playing .timeline-body {
-  background: linear-gradient(90deg, rgba(200, 255, 80, 0.06), transparent);
+  border-left-color: var(--lime);
+  border-radius: 12px;
+  background: var(--lime);
+  box-shadow: 0 0 24px rgba(200, 255, 80, 0.25);
+}
+
+.timeline-event.playing .timeline-time::after {
+  background: var(--lime);
+  box-shadow: 0 0 0 4px rgba(200, 255, 80, 0.18), 0 0 18px var(--lime);
+}
+
+.timeline-event.playing .timeline-delay,
+.timeline-event.playing .timeline-note {
+  border-color: rgba(10, 15, 5, 0.3);
+  background: rgba(10, 15, 5, 0.18);
+  color: #11170a;
+}
+
+.timeline-event.playing .timeline-delay i,
+.timeline-event.playing .timeline-note i {
+  background: #11170a;
+}
+
+.timeline-event.playing .timeline-arrow {
+  color: #11170a;
 }
 
 .timeline-time {
@@ -1156,6 +1181,7 @@ input[type="range"] {
   gap: 7px;
   padding: 5px 0 17px 15px;
   border-left: 1px solid var(--line);
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .timeline-delay,
@@ -1197,6 +1223,185 @@ input[type="range"] {
 .timeline-arrow {
   color: var(--muted);
   font-size: 10px;
+}
+
+.piano-sync {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.piano-sync i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime);
+}
+
+.piano-roll {
+  --roll-travel: 390px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #080c15;
+  box-shadow: inset 0 0 45px rgba(0, 0, 0, 0.35);
+}
+
+.roll-stage {
+  position: relative;
+  height: 390px;
+  overflow: hidden;
+  background:
+    linear-gradient(to bottom, rgba(200, 255, 80, 0.04), transparent 28%),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 64px, rgba(255, 255, 255, 0.035) 65px);
+}
+
+.roll-lanes,
+.roll-notes {
+  position: absolute;
+  inset: 0;
+}
+
+.roll-lanes {
+  display: grid;
+  grid-template-columns: repeat(25, minmax(0, 1fr));
+}
+
+.roll-lanes span {
+  border-right: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+.roll-lanes span.sharp {
+  background: rgba(140, 109, 255, 0.025);
+}
+
+.roll-notes {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.roll-note {
+  position: absolute;
+  top: -58px;
+  left: calc((100% / 25) * var(--lane) + 2px);
+  display: grid;
+  width: calc((100% / 25) - 4px);
+  height: 55px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #efffcf, var(--lime));
+  color: #11170a;
+  box-shadow: 0 0 17px rgba(200, 255, 80, 0.42);
+  font-size: 6px;
+  font-weight: 900;
+  animation-name: piano-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.roll-note.sharp {
+  border-color: rgba(200, 255, 80, 0.72);
+  background: linear-gradient(180deg, #b4ff9a, #54e879);
+}
+
+@keyframes piano-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.9);
+  }
+
+  4% {
+    opacity: 1;
+  }
+
+  94% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(var(--roll-travel)) scale(1);
+  }
+}
+
+.roll-hit-line {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--lime);
+  box-shadow: 0 -3px 18px rgba(200, 255, 80, 0.8);
+}
+
+.roll-idle {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  inset: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: radial-gradient(circle, rgba(140, 109, 255, 0.1), transparent 45%);
+  color: var(--muted);
+  text-align: center;
+  pointer-events: none;
+}
+
+.roll-idle span {
+  color: var(--lime);
+  font-family: Georgia, serif;
+  font-size: 34px;
+}
+
+.roll-idle strong {
+  font-size: 9px;
+}
+
+.roll-keys {
+  display: grid;
+  grid-template-columns: repeat(25, minmax(0, 1fr));
+  gap: 1px;
+  height: 66px;
+  padding: 2px;
+  border-top: 1px solid rgba(200, 255, 80, 0.45);
+  background: #05070d;
+}
+
+.roll-key {
+  min-width: 0;
+  padding: 0 1px 7px;
+  border: 0;
+  border-radius: 2px 2px 5px 5px;
+  background: linear-gradient(#f6f8ff, #aeb5c2);
+  color: #111520;
+  cursor: pointer;
+  font-size: 6px;
+  font-weight: 900;
+  transition: background 80ms ease, box-shadow 80ms ease, transform 80ms ease;
+}
+
+.roll-key.sharp {
+  background: linear-gradient(#2d3447, #111521);
+  color: #eef2ff;
+}
+
+.roll-key:hover,
+.roll-key.active {
+  background: var(--lime);
+  color: #11170a;
+  box-shadow: 0 -10px 24px rgba(200, 255, 80, 0.58);
+  transform: translateY(2px);
 }
 
 .instruction-list {
@@ -1705,6 +1910,22 @@ footer p {
   .timeline-header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .piano-roll {
+    --roll-travel: 320px;
+  }
+
+  .roll-stage {
+    height: 320px;
+  }
+
+  .roll-keys {
+    height: 52px;
+  }
+
+  .roll-key {
+    font-size: 0;
   }
 
   .keyboard-card {

@@ -7,6 +7,7 @@ const MAX_NOTE = 78; // F#5
 const MIN_DELAY = 0.05;
 const MAX_DELAY = 10;
 const NOTE_SUSTAIN = 0.85;
+const PIANO_ROLL_LEAD_TIME = 3;
 const MAX_MIDI_SIZE = 25 * 1024 * 1024;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -24,6 +25,7 @@ const elements = {
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
   mergeNotes: document.querySelector("#mergeNotes"),
+  autoFollow: document.querySelector("#autoFollow"),
   emptyState: document.querySelector("#emptyState"),
   resultsContent: document.querySelector("#resultsContent"),
   loadingOverlay: document.querySelector("#loadingOverlay"),
@@ -35,6 +37,11 @@ const elements = {
   statDuration: document.querySelector("#statDuration"),
   planNotice: document.querySelector("#planNotice"),
   timeline: document.querySelector("#timeline"),
+  pianoRoll: document.querySelector("#pianoRoll"),
+  rollLanes: document.querySelector("#rollLanes"),
+  rollNotes: document.querySelector("#rollNotes"),
+  rollIdle: document.querySelector("#rollIdle"),
+  rollKeys: document.querySelector("#rollKeys"),
   instructionList: document.querySelector("#instructionList"),
   noteTableBody: document.querySelector("#noteTableBody"),
   previewButton: document.querySelector("#previewButton"),
@@ -54,6 +61,7 @@ const state = {
   synthPromise: null,
   audioContext: null,
   outputGain: null,
+  previewStartedAt: null,
   stopTimer: null,
   audioTimers: [],
   highlightTimers: [],
@@ -246,6 +254,7 @@ function renderPlan() {
   elements.planNotice.textContent = notices.join(" ");
   elements.planNotice.classList.toggle("hidden", notices.length === 0);
   renderTimeline();
+  renderPianoRoll();
   renderInstructions();
   renderNoteTable();
   elements.emptyState.classList.add("hidden");
@@ -309,6 +318,82 @@ function renderTimeline() {
   }
 
   elements.timeline.replaceChildren(fragment);
+}
+
+function renderPianoRoll() {
+  const laneFragment = document.createDocumentFragment();
+  const keyFragment = document.createDocumentFragment();
+
+  for (let midi = MIN_NOTE; midi <= MAX_NOTE; midi += 1) {
+    const name = midiToName(midi);
+    const sharp = name.includes("#");
+
+    const lane = document.createElement("span");
+    lane.className = sharp ? "sharp" : "";
+    laneFragment.append(lane);
+
+    const key = document.createElement("button");
+    key.type = "button";
+    key.className = `roll-key${sharp ? " sharp" : ""}`;
+    key.dataset.midi = midi;
+    key.textContent = name;
+    key.title = `Play ${name}`;
+    key.addEventListener("click", () => playKeyboardNote(midi, key));
+    keyFragment.append(key);
+  }
+
+  elements.rollLanes.replaceChildren(laneFragment);
+  elements.rollKeys.replaceChildren(keyFragment);
+  resetPianoRoll();
+}
+
+function resetPianoRoll() {
+  elements.rollNotes.replaceChildren();
+  elements.pianoRoll.classList.remove("playing");
+  elements.rollIdle.classList.remove("hidden");
+  elements.rollKeys.querySelectorAll(".active").forEach((key) => key.classList.remove("active"));
+}
+
+function startPianoRoll(elapsed = 0) {
+  const fragment = document.createDocumentFragment();
+
+  for (const event of state.plan.events) {
+    for (const note of event.notes) {
+      const tile = document.createElement("span");
+      tile.className = `roll-note${note.name.includes("#") ? " sharp" : ""}`;
+      tile.style.setProperty("--lane", note.midi - MIN_NOTE);
+      tile.style.animationDelay = `${event.plannedTime - PIANO_ROLL_LEAD_TIME - elapsed}s`;
+      tile.style.animationDuration = `${PIANO_ROLL_LEAD_TIME}s`;
+      tile.textContent = note.name;
+      fragment.append(tile);
+    }
+  }
+
+  elements.rollNotes.replaceChildren(fragment);
+  elements.rollIdle.classList.add("hidden");
+  elements.pianoRoll.classList.add("playing");
+}
+
+function setRollKeyActive(midi, active) {
+  const key = elements.rollKeys.querySelector(`[data-midi="${midi}"]`);
+  key?.classList.toggle("active", active);
+}
+
+function followTimelineRow(row) {
+  if (!elements.autoFollow.checked || !document.querySelector("#timelineView").classList.contains("active")) {
+    return;
+  }
+
+  const timelineRect = elements.timeline.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const target =
+    elements.timeline.scrollTop +
+    rowRect.top -
+    timelineRect.top -
+    elements.timeline.clientHeight / 2 +
+    rowRect.height / 2;
+
+  elements.timeline.scrollTo({ top: target, behavior: "smooth" });
 }
 
 function delayRangeLabel(delays) {
@@ -528,6 +613,7 @@ function clearHighlights() {
   state.highlightTimers = [];
   document.querySelectorAll(".timeline-event.playing").forEach((row) => row.classList.remove("playing"));
   document.querySelectorAll(".piano-key.active").forEach((key) => key.classList.remove("active"));
+  resetPianoRoll();
 }
 
 function clearAudioTimers() {
@@ -544,6 +630,7 @@ function setPlaybackButtons(isPlaying) {
 function stopPreview() {
   window.clearTimeout(state.stopTimer);
   state.stopTimer = null;
+  state.previewStartedAt = null;
   clearAudioTimers();
   state.synth?.stopAll(true);
   clearHighlights();
@@ -562,6 +649,8 @@ async function previewPlan() {
     const synth = await ensureSynth();
     stopPreview();
     setPlaybackButtons(true);
+    state.previewStartedAt = performance.now();
+    startPianoRoll();
 
     state.plan.events.forEach((event) => {
       state.audioTimers.push(
@@ -570,12 +659,14 @@ async function previewPlan() {
             const channel = (note.id - 1) % 16;
             const velocity = Math.max(48, Math.round(note.velocity * 127));
             synth.noteOn(channel, note.midi, velocity);
+            setRollKeyActive(note.midi, true);
           });
           state.audioTimers.push(
             window.setTimeout(() => {
               event.notes.forEach((note) => {
                 const channel = (note.id - 1) % 16;
                 synth.noteOff(channel, note.midi);
+                setRollKeyActive(note.midi, false);
               });
             }, NOTE_SUSTAIN * 1000),
           );
@@ -588,6 +679,7 @@ async function previewPlan() {
           window.setTimeout(() => {
             document.querySelectorAll(".timeline-event.playing").forEach((active) => active.classList.remove("playing"));
             row.classList.add("playing");
+            followTimelineRow(row);
           }, event.plannedTime * 1000),
         );
       }
@@ -631,6 +723,7 @@ function renderKeyboard() {
     const key = document.createElement("button");
     key.type = "button";
     key.className = `piano-key${name.includes("#") ? " sharp" : ""}`;
+    key.dataset.midi = midi;
     key.textContent = name;
     key.title = `${name} · ${midi - MIN_NOTE === 0 ? "default key" : `increment ${midi - MIN_NOTE} times from F#3`}`;
     key.addEventListener("click", () => playKeyboardNote(midi, key));
@@ -655,6 +748,16 @@ function activateView(button) {
 
   document.querySelectorAll(".view-panel").forEach((panel) => panel.classList.remove("active"));
   document.querySelector(`#${button.dataset.view}View`).classList.add("active");
+
+  if (button.dataset.view === "piano" && state.previewStartedAt !== null) {
+    const elapsed = (performance.now() - state.previewStartedAt) / 1000;
+    window.requestAnimationFrame(() => startPianoRoll(elapsed));
+  }
+
+  if (button.dataset.view === "timeline" && elements.autoFollow.checked) {
+    const activeRow = elements.timeline.querySelector(".timeline-event.playing");
+    if (activeRow) window.requestAnimationFrame(() => followTimelineRow(activeRow));
+  }
 }
 
 elements.midiFile.addEventListener("change", (event) => handleMidi(event.target.files[0]));

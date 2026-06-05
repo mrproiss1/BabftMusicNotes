@@ -141,6 +141,15 @@
                 <input id="mergeNotes" type="checkbox" checked />
                 <i aria-hidden="true"></i>
               </label>
+
+              <label class="toggle-row">
+                <span>
+                  <strong>Auto-follow preview</strong>
+                  <small>Keeps the active green timeline step in view.</small>
+                </span>
+                <input id="autoFollow" type="checkbox" checked />
+                <i aria-hidden="true"></i>
+              </label>
             </div>
           </aside>
 
@@ -148,6 +157,7 @@
             <div class="results-toolbar">
               <div class="view-tabs" role="tablist" aria-label="Result view">
                 <button class="active" data-view="timeline" role="tab" aria-selected="true">Timeline</button>
+                <button data-view="piano" role="tab" aria-selected="false">Piano roll</button>
                 <button data-view="instructions" role="tab" aria-selected="false">Build steps</button>
                 <button data-view="notes" role="tab" aria-selected="false">Note list</button>
               </div>
@@ -193,6 +203,28 @@
                   <div class="legend"><i></i> Delay <i></i> Music Note</div>
                 </div>
                 <div class="timeline" id="timeline"></div>
+              </div>
+
+              <div class="view-panel" id="pianoView">
+                <div class="timeline-header">
+                  <div>
+                    <h3>Falling piano roll</h3>
+                    <p>Press Preview and watch each tile land on its BABFT key.</p>
+                  </div>
+                  <div class="piano-sync"><i></i> Synced to preview</div>
+                </div>
+                <div class="piano-roll" id="pianoRoll">
+                  <div class="roll-stage" id="rollStage">
+                    <div class="roll-lanes" id="rollLanes"></div>
+                    <div class="roll-notes" id="rollNotes"></div>
+                    <div class="roll-idle" id="rollIdle">
+                      <span>♪</span>
+                      <strong>Press Preview to start the piano roll</strong>
+                    </div>
+                    <div class="roll-hit-line"></div>
+                  </div>
+                  <div class="roll-keys" id="rollKeys"></div>
+                </div>
               </div>
 
               <div class="view-panel" id="instructionsView">
