@@ -1,0 +1,17 @@
+{
+  "name": "BABFT Music Notes",
+  "short_name": "BABFT Notes",
+  "description": "Turn MIDI files into BABFT Music Note and Delay Block build plans.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b16",
+  "theme_color": "#080b16",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
