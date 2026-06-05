@@ -21,6 +21,8 @@ const elements = {
   startOffsetOutput: document.querySelector("#startOffsetOutput"),
   tempoScale: document.querySelector("#tempoScale"),
   tempoScaleOutput: document.querySelector("#tempoScaleOutput"),
+  previewVolume: document.querySelector("#previewVolume"),
+  previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
   mergeNotes: document.querySelector("#mergeNotes"),
   emptyState: document.querySelector("#emptyState"),
   resultsContent: document.querySelector("#resultsContent"),
@@ -51,6 +53,7 @@ const state = {
   synth: null,
   synthPromise: null,
   audioContext: null,
+  outputGain: null,
   stopTimer: null,
   audioTimers: [],
   highlightTimers: [],
@@ -107,6 +110,19 @@ function showLoading(title, text) {
 
 function hideLoading() {
   elements.loadingOverlay.classList.add("hidden");
+}
+
+function updatePreviewVolume() {
+  const volume = Number(elements.previewVolume.value);
+  elements.previewVolumeOutput.value = `${volume}%`;
+
+  if (state.outputGain && state.audioContext) {
+    state.outputGain.gain.setTargetAtTime(
+      volume / 100,
+      state.audioContext.currentTime,
+      0.015,
+    );
+  }
 }
 
 function splitDelay(seconds) {
@@ -473,9 +489,17 @@ async function ensureSynth() {
       await state.audioContext.audioWorklet.addModule("/spessasynth_processor.min.js");
       const synth = new WorkletSynthesizer(state.audioContext);
       const gain = state.audioContext.createGain();
-      gain.gain.value = 0.8;
+      const compressor = state.audioContext.createDynamicsCompressor();
+      gain.gain.value = Number(elements.previewVolume.value) / 100;
+      compressor.threshold.value = -5;
+      compressor.knee.value = 10;
+      compressor.ratio.value = 5;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.2;
       synth.connect(gain);
-      gain.connect(state.audioContext.destination);
+      gain.connect(compressor);
+      compressor.connect(state.audioContext.destination);
+      state.outputGain = gain;
 
       const soundFont = await fetch("/babft-sf.sf2").then((response) => {
         if (!response.ok) throw new Error("BABFT SoundFont could not be loaded.");
@@ -643,6 +667,7 @@ elements.copyInstructions.addEventListener("click", () =>
 elements.copyNotes.addEventListener("click", () => copyText(buildNotesText(), "Music Note list copied."));
 elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
+elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
 
 document.querySelectorAll(".view-tabs button").forEach((button) => {
@@ -667,4 +692,5 @@ elements.dropZone.addEventListener("drop", (event) => handleMidi(event.dataTrans
 window.addEventListener("beforeunload", stopPreview);
 
 renderKeyboard();
+updatePreviewVolume();
 rerenderFromSettings();
