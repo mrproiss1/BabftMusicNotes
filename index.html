@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Turn MIDI files into clear Music Note and Delay Block instructions for Build A Boat For Treasure."
+    />
+    <meta name="theme-color" content="#080b16" />
+    <title>BABFT Music Notes</title>
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="BABFT Music Notes home">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>BABFT <strong>Music Notes</strong></span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="#converter">Converter</a>
+        <a href="#guide">How it works</a>
+        <a href="#notes">Notes</a>
+      </nav>
+      <span class="privacy-pill"><i></i> 100% local</span>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">MIDI to block-by-block blueprint</span>
+          <h1>Turn a song into a <em>BABFT</em> music build.</h1>
+          <p>
+            Drop in a MIDI file and get the exact Music Notes, Delay settings, and
+            wiring order you need. Preview it with the real BABFT SoundFont before
+            placing a single block.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#converter">Start converting <span>↓</span></a>
+            <a class="button ghost" href="#guide">See the build guide</a>
+          </div>
+          <div class="privacy-note">
+            <span class="shield" aria-hidden="true">✓</span>
+            <p>
+              <strong>Your MIDI never leaves your device.</strong>
+              It is read in this browser tab only. No upload, account, or server storage.
+            </p>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="note-block">
+            <div class="block-top"></div>
+            <div class="block-face">
+              <span>♫</span>
+              <small>F#3</small>
+            </div>
+          </div>
+          <div class="delay-chip chip-one"><b>0.25</b><span>sec delay</span></div>
+          <div class="delay-chip chip-two"><b>G#4</b><span>music note</span></div>
+          <div class="delay-chip chip-three"><b>0.05</b><span>min delay</span></div>
+          <div class="signal-line signal-one"></div>
+          <div class="signal-line signal-two"></div>
+        </div>
+      </section>
+
+      <section class="workspace-section" id="converter">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">The converter</span>
+            <h2>From MIDI to build plan</h2>
+          </div>
+          <p>Only notes inside BABFT's playable F#3–F#5 range are included.</p>
+        </div>
+
+        <div class="workspace">
+          <aside class="control-panel">
+            <div class="panel-heading">
+              <span class="step-number">01</span>
+              <div>
+                <h3>Choose a MIDI</h3>
+                <p>Processed locally in your browser</p>
+              </div>
+            </div>
+
+            <label class="drop-zone" id="dropZone" for="midiFile">
+              <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
+              <span class="upload-icon" aria-hidden="true">↥</span>
+              <strong>Drop your MIDI here</strong>
+              <span>or click to browse</span>
+              <small>.mid or .midi · never uploaded</small>
+            </label>
+
+            <div class="file-card hidden" id="fileCard">
+              <span class="file-icon">♪</span>
+              <div>
+                <strong id="fileName">song.mid</strong>
+                <span id="fileMeta">0 KB</span>
+              </div>
+              <button id="removeFile" type="button" aria-label="Remove MIDI">×</button>
+            </div>
+
+            <div class="settings">
+              <div class="setting">
+                <label for="startOffset">
+                  <span>Start delay</span>
+                  <output id="startOffsetOutput">0.50s</output>
+                </label>
+                <input id="startOffset" type="range" min="0.05" max="3" step="0.05" value="0.5" />
+                <small>Time to get into your seat before the song begins.</small>
+              </div>
+
+              <div class="setting">
+                <label for="tempoScale">
+                  <span>Song speed</span>
+                  <output id="tempoScaleOutput">100%</output>
+                </label>
+                <input id="tempoScale" type="range" min="50" max="150" step="5" value="100" />
+                <small>Adjust timing if the build needs to play faster or slower.</small>
+              </div>
+
+              <label class="toggle-row">
+                <span>
+                  <strong>Merge nearby notes</strong>
+                  <small>Groups starts within 0.025s into one chord.</small>
+                </span>
+                <input id="mergeNotes" type="checkbox" checked />
+                <i aria-hidden="true"></i>
+              </label>
+            </div>
+          </aside>
+
+          <section class="results-panel">
+            <div class="results-toolbar">
+              <div class="view-tabs" role="tablist" aria-label="Result view">
+                <button class="active" data-view="timeline" role="tab" aria-selected="true">Timeline</button>
+                <button data-view="instructions" role="tab" aria-selected="false">Build steps</button>
+                <button data-view="notes" role="tab" aria-selected="false">Note list</button>
+              </div>
+              <div class="playback-controls">
+                <button class="icon-button" id="stopButton" type="button" aria-label="Stop preview" disabled>■</button>
+                <button class="preview-button" id="previewButton" type="button" disabled>
+                  <span>▶</span> Preview
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-state" id="emptyState">
+              <div class="empty-graphic">
+                <span>♪</span>
+                <i></i><i></i><i></i><i></i>
+              </div>
+              <h3>Your build plan will appear here</h3>
+              <p>Choose a MIDI file to see its playable notes, delay chain, and wiring instructions.</p>
+              <div class="range-card">
+                <span>Playable range</span>
+                <strong>F#3</strong>
+                <div><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                <strong>F#5</strong>
+              </div>
+            </div>
+
+            <div class="results-content hidden" id="resultsContent">
+              <div class="stats-grid">
+                <div><span>Playable notes</span><strong id="statNotes">0</strong></div>
+                <div><span>Music blocks</span><strong id="statBlocks">0</strong></div>
+                <div><span>Delay blocks</span><strong id="statDelays">0</strong></div>
+                <div><span>Song length</span><strong id="statDuration">0:00</strong></div>
+              </div>
+
+              <div class="notice hidden" id="skippedNotice"></div>
+
+              <div class="view-panel active" id="timelineView">
+                <div class="timeline-header">
+                  <div>
+                    <h3>Signal timeline</h3>
+                    <p>Each row is one activation in your chain.</p>
+                  </div>
+                  <div class="legend"><i></i> Delay <i></i> Music Note</div>
+                </div>
+                <div class="timeline" id="timeline"></div>
+              </div>
+
+              <div class="view-panel" id="instructionsView">
+                <div class="instructions-heading">
+                  <div>
+                    <h3>Block-by-block instructions</h3>
+                    <p>Start with a Pilot Seat or Car Seat, then follow this chain.</p>
+                  </div>
+                  <button class="copy-button" id="copyInstructions" type="button">Copy steps</button>
+                </div>
+                <ol class="instruction-list" id="instructionList"></ol>
+              </div>
+
+              <div class="view-panel" id="notesView">
+                <div class="instructions-heading">
+                  <div>
+                    <h3>Music Note block list</h3>
+                    <p>Use the Property Tool to set each block's key.</p>
+                  </div>
+                  <button class="copy-button" id="copyNotes" type="button">Copy list</button>
+                </div>
+                <div class="note-table-wrap">
+                  <table>
+                    <thead><tr><th>#</th><th>Start</th><th>Key</th><th>Property clicks</th><th>Duration</th></tr></thead>
+                    <tbody id="noteTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="loading-overlay hidden" id="loadingOverlay">
+              <div class="spinner"></div>
+              <strong id="loadingTitle">Reading your MIDI…</strong>
+              <span id="loadingText">This stays inside your browser.</span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="guide-section" id="guide">
+        <div class="section-heading">
+          <div><span class="eyebrow">Build guide</span><h2>How the chain works</h2></div>
+          <p>The converter handles the math. You just place, configure, and bind.</p>
+        </div>
+        <div class="guide-grid">
+          <article>
+            <span class="guide-index">1</span>
+            <div class="guide-icon seat-icon">⌑</div>
+            <h3>Start with a seat</h3>
+            <p>Bind a Pilot Seat or Car Seat to the first Delay. Any seat input can start the chain.</p>
+            <small>Tip: avoid W if releasing it could trigger the song early.</small>
+          </article>
+          <article>
+            <span class="guide-index">2</span>
+            <div class="guide-icon delay-icon"><i></i></div>
+            <h3>Set each Delay</h3>
+            <p>Use the Property Tool to enter the shown hold time, from 0.05 to 10 seconds.</p>
+            <small>Long waits are split into several 10-second Delays.</small>
+          </article>
+          <article>
+            <span class="guide-index">3</span>
+            <div class="guide-icon music-icon">♫</div>
+            <h3>Set Music Note keys</h3>
+            <p>Configure every Music Note block, then bind each Delay to its note outputs.</p>
+            <small>Chords use several Music Notes bound to the same Delay.</small>
+          </article>
+        </div>
+      </section>
+
+      <section class="notes-section" id="notes">
+        <div class="notes-copy">
+          <span class="eyebrow">BABFT note range</span>
+          <h2>25 playable notes, ready to place.</h2>
+          <p>
+            Music Note blocks begin at <strong>F#3</strong>. Incrementing the key moves
+            upward through the keyboard until <strong>F#5</strong>, then loops back.
+            Each block can sustain for about 850 ms.
+          </p>
+          <div class="fact-row">
+            <div><strong>0.05s</strong><span>minimum Delay</span></div>
+            <div><strong>10s</strong><span>maximum Delay</span></div>
+            <div><strong>~850ms</strong><span>note sustain</span></div>
+          </div>
+        </div>
+        <div class="keyboard-card">
+          <div class="keyboard-heading"><span>Property Tool key order</span><small>Click a key to hear it</small></div>
+          <div class="keyboard" id="keyboard"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="#"><span class="brand-mark"><span></span><span></span><span></span></span><span>BABFT <strong>Music Notes</strong></span></a>
+      <p>Made for builders who would rather spend time making music.</p>
+      <span class="privacy-pill"><i></i> Files stay local</span>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
