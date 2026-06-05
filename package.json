@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,9 +13,7 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
-    "spessasynth_lib": "^4.3.6"
-  },
-  "devDependencies": {
+    "spessasynth_lib": "^4.3.6",
     "vite": "^8.0.16"
   }
 }
