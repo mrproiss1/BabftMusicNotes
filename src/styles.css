@@ -1406,8 +1406,8 @@ input[type="range"] {
 
 .instruction-list {
   display: grid;
-  max-height: 455px;
-  gap: 8px;
+  max-height: 500px;
+  gap: 10px;
   margin: 0;
   overflow: auto;
   padding: 0 5px 0 0;
@@ -1417,39 +1417,203 @@ input[type="range"] {
 }
 
 .instruction-list li {
+  position: relative;
   display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 11px;
-  padding: 12px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 13px;
+  padding: 15px;
   border: 1px solid var(--line);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012));
   counter-increment: instruction;
 }
 
 .instruction-list li::before {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 25px;
+  height: 19px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--purple-soft);
   color: #c8bcff;
   content: counter(instruction, decimal-leading-zero);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 850;
 }
 
-.instruction-list strong {
-  display: block;
-  margin-bottom: 3px;
-  font-size: 10px;
+.instruction-list li.trigger-step {
+  border-color: rgba(200, 255, 80, 0.2);
+  background: linear-gradient(145deg, rgba(200, 255, 80, 0.075), rgba(255, 255, 255, 0.012));
 }
 
-.instruction-list span {
+.instruction-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(140, 109, 255, 0.26);
+  border-radius: 13px;
+  background: var(--purple-soft);
+  color: #c8bcff;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.trigger-step .instruction-icon {
+  border-color: rgba(200, 255, 80, 0.25);
+  background: var(--lime-soft);
+  color: var(--lime);
+}
+
+.instruction-content {
+  min-width: 0;
+}
+
+.instruction-title {
+  display: flex;
+  min-height: 42px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding-right: 35px;
+}
+
+.instruction-title > span {
+  color: var(--lime);
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.instruction-title strong {
+  display: block;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.instruction-content p {
+  margin: 11px 0 0;
   color: var(--muted);
   font-size: 9px;
-  line-height: 1.55;
+  line-height: 1.65;
+}
+
+.instruction-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.instruction-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-light);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.instruction-legend i,
+.connection-chip i,
+.delay-time-list i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--purple);
+}
+
+.instruction-legend .start-dot {
+  background: var(--lime);
+}
+
+.instruction-legend .note-dot,
+.connection-chip.note i {
+  border-radius: 50%;
+  background: var(--lime);
+}
+
+.instruction-legend small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.delay-time-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.delay-time-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgba(140, 109, 255, 0.24);
+  border-radius: 8px;
+  background: var(--purple-soft);
+  color: #c8bcff;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.delay-time-list b {
+  color: var(--text);
+  font-size: 9px;
+}
+
+.connection-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+.connection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted-light);
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.connection-chip b {
+  color: var(--lime);
+  font-size: 9px;
+}
+
+.connection-chip.trigger i {
+  background: #f0b85d;
+}
+
+.connection-chip.continue {
+  border-color: rgba(200, 255, 80, 0.2);
+  background: var(--lime-soft);
+  color: #e3ffa8;
+}
+
+.connection-chip.continue i {
+  background: var(--lime);
 }
 
 .copy-button {
@@ -1926,6 +2090,24 @@ footer p {
 
   .roll-key {
     font-size: 0;
+  }
+
+  .instruction-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .instruction-icon {
+    width: 39px;
+    height: 39px;
+  }
+
+  .instruction-title {
+    min-height: 0;
+  }
+
+  .instruction-legend small {
+    width: 100%;
+    margin-left: 0;
   }
 
   .keyboard-card {

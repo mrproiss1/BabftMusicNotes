@@ -231,9 +231,15 @@
                 <div class="instructions-heading">
                   <div>
                     <h3>Block-by-block instructions</h3>
-                    <p>Start with a Pilot Seat or Car Seat, then follow this chain.</p>
+                    <p>Start with a Button or seat, then follow every shown binding.</p>
                   </div>
                   <button class="copy-button" id="copyInstructions" type="button">Copy steps</button>
+                </div>
+                <div class="instruction-legend">
+                  <span><i class="start-dot"></i> Trigger</span>
+                  <span><i class="delay-dot"></i> Delay time</span>
+                  <span><i class="note-dot"></i> Music Note</span>
+                  <small>One block can bind to multiple outputs.</small>
                 </div>
                 <ol class="instruction-list" id="instructionList"></ol>
               </div>
@@ -273,16 +279,16 @@
           <article>
             <span class="guide-index">1</span>
             <div class="guide-icon seat-icon">⌑</div>
-            <h3>Start with a seat</h3>
-            <p>Bind a Pilot Seat or Car Seat to the first Delay. Any seat input can start the chain.</p>
-            <small>Tip: avoid W if releasing it could trigger the song early.</small>
+            <h3>Choose a trigger</h3>
+            <p>Bind a Button, Pilot Seat, or Car Seat to the first Delay to start the song.</p>
+            <small>Buttons are simple. For seats, avoid W if releasing it could trigger the song early.</small>
           </article>
           <article>
             <span class="guide-index">2</span>
             <div class="guide-icon delay-icon"><i></i></div>
             <h3>Set each Delay</h3>
-            <p>Use the Property Tool to enter the shown hold time, from 0.05 to 10 seconds.</p>
-            <small>Long waits are split into several 10-second Delays.</small>
+            <p>Use the Property Tool to enter each shown hold time, then bind every Delay to the next Delay in its chain.</p>
+            <small>Long waits are split into several Delays, with a maximum of 10 seconds each.</small>
           </article>
           <article>
             <span class="guide-index">3</span>

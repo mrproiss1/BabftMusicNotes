@@ -396,36 +396,82 @@ function followTimelineRow(row) {
   elements.timeline.scrollTo({ top: target, behavior: "smooth" });
 }
 
-function delayRangeLabel(delays) {
-  if (delays.length === 1) return `Delay ${delays[0].id}`;
-  return `Delays ${delays[0].id}–${delays.at(-1).id}`;
-}
-
 function delaySettingsLabel(delays) {
   return delays.map((delay) => `${delay.id}: ${formatSeconds(delay.duration)}`).join(", ");
+}
+
+function delayTitleLabel(delays) {
+  return delays
+    .map((delay) => `Delay ${delay.id} (${formatSeconds(delay.duration)})`)
+    .join(" → ");
+}
+
+function createConnectionChip(from, to, type = "delay") {
+  const chip = document.createElement("span");
+  chip.className = `connection-chip ${type}`;
+  chip.innerHTML = `<i></i>${from}<b>→</b>${to}`;
+  return chip;
 }
 
 function renderInstructions() {
   const fragment = document.createDocumentFragment();
 
   const trigger = document.createElement("li");
+  trigger.className = "trigger-step";
   trigger.innerHTML =
-    "<div><strong>Place your trigger seat</strong><span>Place a Pilot Seat or Car Seat. Bind it to Delay 1. Any seat input can activate it, so choose your trigger key carefully.</span></div>";
+    '<div class="instruction-icon" aria-hidden="true">START</div><div class="instruction-content"><div class="instruction-title"><span>Trigger</span><strong>Button or seat → Delay 1</strong></div><p>Place a Button, Pilot Seat, or Car Seat and bind it to Delay 1. Buttons activate when pressed. Any seat input can activate the chain, so choose seat keys carefully.</p><div class="connection-list"><span class="connection-chip trigger"><i></i>Button / Seat<b>→</b>Delay 1</span></div></div>';
   fragment.append(trigger);
 
   for (const event of state.plan.events) {
     const item = document.createElement("li");
+    item.className = "delay-step";
     const source =
       event.id === 1
-        ? "the seat"
+        ? "Button / Seat"
         : `Delay ${state.plan.events[event.id - 2].delays.at(-1).id}`;
     const noteLabels = event.notes
       .map((note) => `Music Note ${note.id} (${note.name})`)
       .join(", ");
     const next = state.plan.events[event.id]?.delays[0]?.id;
-    const nextText = next ? ` Also bind it to Delay ${next} to continue the chain.` : " This is the end of the chain.";
+    const finalDelay = event.delays.at(-1);
+    const content = document.createElement("div");
+    content.className = "instruction-content";
+    content.innerHTML = `
+      <div class="instruction-title">
+        <span>Delay chain</span>
+        <strong>${delayTitleLabel(event.delays)} → ${event.notes.map((note) => note.name).join(" + ")}</strong>
+      </div>
+      <div class="delay-time-list">
+        ${event.delays.map((delay) => `<span><i></i>Delay ${delay.id}<b>${formatSeconds(delay.duration)}</b></span>`).join("")}
+      </div>
+      <p>Set the Delay times above with the Property Tool. Bind each block using the connections below. The final Delay activates ${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
+    `;
 
-    item.innerHTML = `<div><strong>${delayRangeLabel(event.delays)} → ${event.notes.map((note) => note.name).join(" + ")}</strong><span>Bind ${source} through ${delayRangeLabel(event.delays)}. Set ${delaySettingsLabel(event.delays)}. Bind the final Delay to ${noteLabels}.${nextText}</span></div>`;
+    const icon = document.createElement("div");
+    icon.className = "instruction-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "DELAY";
+
+    const connections = document.createElement("div");
+    connections.className = "connection-list";
+    connections.append(createConnectionChip(source, `Delay ${event.delays[0].id}`, "trigger"));
+    event.delays.slice(0, -1).forEach((delay, index) => {
+      connections.append(
+        createConnectionChip(`Delay ${delay.id}`, `Delay ${event.delays[index + 1].id}`),
+      );
+    });
+    event.notes.forEach((note) => {
+      connections.append(
+        createConnectionChip(`Delay ${finalDelay.id}`, `Note ${note.id} (${note.name})`, "note"),
+      );
+    });
+    if (next) {
+      connections.append(
+        createConnectionChip(`Delay ${finalDelay.id}`, `Delay ${next}`, "continue"),
+      );
+    }
+    content.append(connections);
+    item.append(icon, content);
     fragment.append(item);
   }
 
@@ -457,16 +503,24 @@ function buildInstructionsText() {
     "BABFT MUSIC BUILD PLAN",
     `Playable notes: ${state.plan.noteCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
     "",
-    "1. Place a Pilot Seat or Car Seat and bind it to Delay 1.",
+    "1. Place a Button, Pilot Seat, or Car Seat and bind it to Delay 1.",
   ];
 
   state.plan.events.forEach((event, index) => {
     const source =
-      index === 0 ? "seat" : `Delay ${state.plan.events[index - 1].delays.at(-1).id}`;
+      index === 0 ? "Button / Seat" : `Delay ${state.plan.events[index - 1].delays.at(-1).id}`;
     const notes = event.notes.map((note) => `Music Note ${note.id} (${note.name})`).join(", ");
     const nextDelay = state.plan.events[index + 1]?.delays[0]?.id;
+    const finalDelay = event.delays.at(-1);
+    const connections = [
+      `${source} -> Delay ${event.delays[0].id}`,
+      ...event.delays.slice(0, -1).map((delay, delayIndex) =>
+        `Delay ${delay.id} -> Delay ${event.delays[delayIndex + 1].id}`),
+      ...event.notes.map((note) => `Delay ${finalDelay.id} -> Music Note ${note.id} (${note.name})`),
+      ...(nextDelay ? [`Delay ${finalDelay.id} -> Delay ${nextDelay}`] : []),
+    ];
     lines.push(
-      `${index + 2}. Bind ${source} through ${delayRangeLabel(event.delays)} [${delaySettingsLabel(event.delays)}]. Bind the final Delay to ${notes}.${nextDelay ? ` Also bind it to Delay ${nextDelay}.` : ""}`,
+      `${index + 2}. ${delayTitleLabel(event.delays)} -> ${event.notes.map((note) => note.name).join(" + ")}\n   Set: ${delaySettingsLabel(event.delays)}\n   Bind: ${connections.join(" | ")}\n   Output: ${notes}${nextDelay ? `, then continue to Delay ${nextDelay}` : " (end of chain)"}`,
     );
   });
 
