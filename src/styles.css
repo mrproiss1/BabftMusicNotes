@@ -1045,10 +1045,10 @@ input[type="range"] {
 .notice {
   margin-bottom: 15px;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 102, 125, 0.25);
+  border: 1px solid rgba(140, 109, 255, 0.28);
   border-radius: 10px;
-  background: rgba(255, 102, 125, 0.07);
-  color: #ffacba;
+  background: rgba(140, 109, 255, 0.08);
+  color: #c8bcff;
   font-size: 9px;
   line-height: 1.55;
 }

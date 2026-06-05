@@ -31,7 +31,7 @@ const elements = {
   statBlocks: document.querySelector("#statBlocks"),
   statDelays: document.querySelector("#statDelays"),
   statDuration: document.querySelector("#statDuration"),
-  skippedNotice: document.querySelector("#skippedNotice"),
+  planNotice: document.querySelector("#planNotice"),
   timeline: document.querySelector("#timeline"),
   instructionList: document.querySelector("#instructionList"),
   noteTableBody: document.querySelector("#noteTableBody"),
@@ -46,7 +46,7 @@ const elements = {
 const state = {
   file: null,
   rawNotes: [],
-  skippedNotes: 0,
+  convertedNotes: 0,
   plan: null,
   synth: null,
   synthPromise: null,
@@ -59,6 +59,15 @@ const state = {
 
 function midiToName(midi) {
   return `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
+}
+
+function foldIntoPlayableRange(midi) {
+  let foldedMidi = midi;
+
+  while (foldedMidi < MIN_NOTE) foldedMidi += 12;
+  while (foldedMidi > MAX_NOTE) foldedMidi -= 12;
+
+  return foldedMidi;
 }
 
 function roundDelay(value) {
@@ -207,9 +216,9 @@ function renderPlan() {
   elements.statDuration.textContent = formatClock(plan.duration);
 
   const notices = [];
-  if (state.skippedNotes) {
+  if (state.convertedNotes) {
     notices.push(
-      `${state.skippedNotes.toLocaleString()} note${state.skippedNotes === 1 ? " was" : "s were"} outside F#3–F#5 and skipped.`,
+      `${state.convertedNotes.toLocaleString()} note${state.convertedNotes === 1 ? " was" : "s were"} outside F#3-F#5 and shifted by octaves into the playable range.`,
     );
   }
   if (plan.adjustedGaps) {
@@ -218,8 +227,8 @@ function renderPlan() {
     );
   }
 
-  elements.skippedNotice.textContent = notices.join(" ");
-  elements.skippedNotice.classList.toggle("hidden", notices.length === 0);
+  elements.planNotice.textContent = notices.join(" ");
+  elements.planNotice.classList.toggle("hidden", notices.length === 0);
   renderTimeline();
   renderInstructions();
   renderNoteTable();
@@ -331,7 +340,7 @@ function renderNoteTable() {
       row.innerHTML = `
         <td>${note.id}</td>
         <td>${formatSeconds(event.plannedTime)}</td>
-        <td>${note.name}</td>
+        <td>${note.wasConverted ? `${note.name} (from ${note.originalName})` : note.name}</td>
         <td>${note.propertyClicks === 0 ? "Default F#3" : `+${note.propertyClicks} from F#3`}</td>
         <td>~${NOTE_SUSTAIN.toFixed(2)}s</td>
       `;
@@ -368,7 +377,7 @@ function buildNotesText() {
   for (const event of state.plan.events) {
     for (const note of event.notes) {
       lines.push(
-        `Music Note ${note.id}: ${note.name} at ${formatSeconds(event.plannedTime)} (${note.propertyClicks === 0 ? "default F#3" : `increment ${note.propertyClicks}× from F#3`})`,
+        `Music Note ${note.id}: ${note.name}${note.wasConverted ? ` (converted from ${note.originalName})` : ""} at ${formatSeconds(event.plannedTime)} (${note.propertyClicks === 0 ? "default F#3" : `increment ${note.propertyClicks}× from F#3`})`,
       );
     }
   }
@@ -403,24 +412,27 @@ async function handleMidi(file) {
     const buffer = await file.arrayBuffer();
     const midi = new Midi(buffer);
     const allNotes = midi.tracks.flatMap((track) =>
-      track.notes.map((note) => ({
-        midi: note.midi,
-        sourceTime: note.time,
-        sourceDuration: note.duration,
-        velocity: note.velocity,
-      })),
+      track.notes.map((note) => {
+        const foldedMidi = foldIntoPlayableRange(note.midi);
+        return {
+          midi: foldedMidi,
+          originalMidi: note.midi,
+          originalName: midiToName(note.midi),
+          wasConverted: foldedMidi !== note.midi,
+          sourceTime: note.time,
+          sourceDuration: note.duration,
+          velocity: note.velocity,
+        };
+      }),
     );
-    const playable = allNotes.filter((note) => note.midi >= MIN_NOTE && note.midi <= MAX_NOTE);
 
-    if (!playable.length) {
-      throw new Error("This MIDI has no notes inside BABFT's F#3–F#5 range.");
-    }
+    if (!allNotes.length) throw new Error("This MIDI does not contain any notes.");
 
     state.file = file;
-    state.rawNotes = playable;
-    state.skippedNotes = allNotes.length - playable.length;
+    state.rawNotes = allNotes;
+    state.convertedNotes = allNotes.filter((note) => note.wasConverted).length;
     elements.fileName.textContent = file.name;
-    elements.fileMeta.textContent = `${formatFileSize(file.size)} · ${playable.length.toLocaleString()} playable notes · local only`;
+    elements.fileMeta.textContent = `${formatFileSize(file.size)} · ${allNotes.length.toLocaleString()} notes ready · local only`;
     elements.fileCard.classList.remove("hidden");
     elements.dropZone.classList.add("hidden");
     renderPlan();
@@ -437,7 +449,7 @@ function removeMidi() {
   stopPreview();
   state.file = null;
   state.rawNotes = [];
-  state.skippedNotes = 0;
+  state.convertedNotes = 0;
   state.plan = null;
   elements.midiFile.value = "";
   elements.fileCard.classList.add("hidden");
@@ -461,7 +473,7 @@ async function ensureSynth() {
       await state.audioContext.audioWorklet.addModule("/spessasynth_processor.min.js");
       const synth = new WorkletSynthesizer(state.audioContext);
       const gain = state.audioContext.createGain();
-      gain.gain.value = 0.55;
+      gain.gain.value = 0.8;
       synth.connect(gain);
       gain.connect(state.audioContext.destination);
 

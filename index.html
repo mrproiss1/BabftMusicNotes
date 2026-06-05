@@ -75,7 +75,7 @@
             <span class="eyebrow">The converter</span>
             <h2>From MIDI to build plan</h2>
           </div>
-          <p>Only notes inside BABFT's playable F#3–F#5 range are included.</p>
+          <p>Notes outside BABFT's F#3–F#5 range are shifted by octaves to fit.</p>
         </div>
 
         <div class="workspace">
@@ -156,7 +156,7 @@
                 <i></i><i></i><i></i><i></i>
               </div>
               <h3>Your build plan will appear here</h3>
-              <p>Choose a MIDI file to see its playable notes, delay chain, and wiring instructions.</p>
+              <p>Choose a MIDI file to convert every note into BABFT's range and see its delay chain.</p>
               <div class="range-card">
                 <span>Playable range</span>
                 <strong>F#3</strong>
@@ -173,7 +173,7 @@
                 <div><span>Song length</span><strong id="statDuration">0:00</strong></div>
               </div>
 
-              <div class="notice hidden" id="skippedNotice"></div>
+              <div class="notice hidden" id="planNotice"></div>
 
               <div class="view-panel active" id="timelineView">
                 <div class="timeline-header">
