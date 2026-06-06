@@ -805,6 +805,121 @@ input[type="range"] {
   transform: translateX(15px);
 }
 
+.multiplayer-card {
+  padding: 15px;
+  border: 1px solid rgba(200, 255, 80, 0.15);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(200, 255, 80, 0.08), transparent 36%),
+    rgba(255, 255, 255, 0.02);
+}
+
+.multiplayer-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.multiplayer-heading div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.multiplayer-heading strong {
+  font-size: 11px;
+}
+
+.multiplayer-heading small,
+.multiplayer-card > p,
+.multiplayer-card > small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.multiplayer-card > p {
+  margin-bottom: 11px;
+}
+
+#multiplayerStatus {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  color: var(--muted-light);
+  font-size: 7px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#multiplayerStatus i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+#multiplayerStatus.connected {
+  border-color: rgba(200, 255, 80, 0.25);
+  color: #e4ffa9;
+}
+
+#multiplayerStatus.connected i {
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime);
+}
+
+#multiplayerCode {
+  width: 100%;
+  min-height: 86px;
+  margin-bottom: 9px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: 0;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--muted-light);
+  font: 9px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+#multiplayerCode:focus {
+  border-color: rgba(200, 255, 80, 0.34);
+}
+
+.multiplayer-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.multiplayer-actions button {
+  min-height: 31px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted-light);
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 850;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.multiplayer-actions button:hover {
+  border-color: rgba(200, 255, 80, 0.28);
+  background: var(--lime-soft);
+  transform: translateY(-1px);
+}
+
 .results-panel {
   position: relative;
   min-width: 0;

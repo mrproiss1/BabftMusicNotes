@@ -86,17 +86,17 @@
             <div class="panel-heading">
               <span class="step-number">01</span>
               <div>
-                <h3>Choose a MIDI</h3>
+                <h3>Choose MIDI or MP3</h3>
                 <p>Processed locally in your browser</p>
               </div>
             </div>
 
             <label class="drop-zone" id="dropZone" for="midiFile">
-              <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
+              <input id="midiFile" type="file" accept=".mid,.midi,.mp3,audio/midi,audio/x-midi,audio/mpeg" />
               <span class="upload-icon" aria-hidden="true">↥</span>
-              <strong>Drop your MIDI here</strong>
+              <strong>Drop MIDI or MP3 here</strong>
               <span>or click to browse</span>
-              <small>.mid or .midi · never uploaded</small>
+              <small>.mid, .midi, or .mp3 · MP3 experimental · never uploaded</small>
             </label>
 
             <div class="file-card hidden" id="fileCard">
@@ -153,6 +153,27 @@
                 <input id="autoFollow" type="checkbox" checked />
                 <i aria-hidden="true"></i>
               </label>
+
+              <div class="multiplayer-card">
+                <div class="multiplayer-heading">
+                  <div>
+                    <strong>Multiplayer LAN</strong>
+                    <small>Same WiFi or Radmin VPN. No file uploads.</small>
+                  </div>
+                  <span id="multiplayerStatus"><i></i> Offline</span>
+                </div>
+                <p>
+                  Share the converted plan and sync Preview with one friend using manual WebRTC codes.
+                </p>
+                <textarea id="multiplayerCode" spellcheck="false" placeholder="Invite or answer code appears here. Paste your friend's code here too."></textarea>
+                <div class="multiplayer-actions">
+                  <button id="hostRoom" type="button">Host invite</button>
+                  <button id="joinRoom" type="button">Join invite</button>
+                  <button id="connectAnswer" type="button">Use answer</button>
+                  <button id="syncMultiplayer" type="button">Sync song</button>
+                </div>
+                <small id="multiplayerHelp">Host makes an invite. Friend joins and sends back the answer. Host pastes the answer.</small>
+              </div>
             </div>
           </aside>
 
@@ -178,7 +199,7 @@
                 <i></i><i></i><i></i><i></i>
               </div>
               <h3>Your build plan will appear here</h3>
-              <p>Choose a MIDI file to convert every note into BABFT's range and see its delay chain.</p>
+              <p>Choose a MIDI file, or try an experimental MP3, to convert notes into BABFT's range.</p>
               <div class="range-card">
                 <span>Playable range</span>
                 <strong>F#3</strong>

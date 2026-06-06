@@ -9,6 +9,15 @@ const MAX_DELAY = 10;
 const NOTE_SUSTAIN = 0.85;
 const PIANO_ROLL_LEAD_TIME = 3;
 const MAX_MIDI_SIZE = 25 * 1024 * 1024;
+const MAX_MP3_SIZE = 60 * 1024 * 1024;
+const MP3_ANALYSIS_MAX_SECONDS = 240;
+const MP3_ANALYSIS_SAMPLE_RATE = 11025;
+const MP3_ANALYSIS_WINDOW_SIZE = 1024;
+const MP3_ANALYSIS_HOP_SECONDS = 0.12;
+const MP3_MIN_RMS = 0.018;
+const MP3_MIN_CONFIDENCE = 0.42;
+const MP3_MAX_EXTRACTED_NOTES = 2600;
+const MULTIPLAYER_CHUNK_SIZE = 12000;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 const elements = {
@@ -26,6 +35,13 @@ const elements = {
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
   mergeNotes: document.querySelector("#mergeNotes"),
   autoFollow: document.querySelector("#autoFollow"),
+  multiplayerStatus: document.querySelector("#multiplayerStatus"),
+  multiplayerCode: document.querySelector("#multiplayerCode"),
+  multiplayerHelp: document.querySelector("#multiplayerHelp"),
+  hostRoom: document.querySelector("#hostRoom"),
+  joinRoom: document.querySelector("#joinRoom"),
+  connectAnswer: document.querySelector("#connectAnswer"),
+  syncMultiplayer: document.querySelector("#syncMultiplayer"),
   emptyState: document.querySelector("#emptyState"),
   resultsContent: document.querySelector("#resultsContent"),
   loadingOverlay: document.querySelector("#loadingOverlay"),
@@ -56,6 +72,8 @@ const state = {
   file: null,
   rawNotes: [],
   convertedNotes: 0,
+  sourceType: null,
+  analysisMeta: null,
   plan: null,
   synth: null,
   synthPromise: null,
@@ -66,6 +84,9 @@ const state = {
   audioTimers: [],
   highlightTimers: [],
   toastTimer: null,
+  peerConnection: null,
+  dataChannel: null,
+  incomingChunks: new Map(),
 };
 
 function midiToName(midi) {
@@ -103,6 +124,14 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function sleep(ms = 0) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function frequencyToMidi(frequency) {
+  return Math.round(69 + 12 * Math.log2(frequency / 440));
+}
+
 function showToast(message) {
   window.clearTimeout(state.toastTimer);
   elements.toast.textContent = message;
@@ -131,6 +160,166 @@ function updatePreviewVolume() {
       0.015,
     );
   }
+}
+
+function detectPitch(frame, sampleRate) {
+  let rms = 0;
+  for (const sample of frame) rms += sample * sample;
+  rms = Math.sqrt(rms / frame.length);
+  if (rms < MP3_MIN_RMS) return null;
+
+  const minLag = Math.max(8, Math.floor(sampleRate / 1100));
+  const maxLag = Math.min(frame.length - 2, Math.floor(sampleRate / 60));
+  let bestLag = 0;
+  let bestCorrelation = 0;
+
+  for (let lag = minLag; lag <= maxLag; lag += 1) {
+    let correlation = 0;
+    let energyA = 0;
+    let energyB = 0;
+    const limit = frame.length - lag;
+
+    for (let index = 0; index < limit; index += 1) {
+      const a = frame[index];
+      const b = frame[index + lag];
+      correlation += a * b;
+      energyA += a * a;
+      energyB += b * b;
+    }
+
+    if (energyA === 0 || energyB === 0) continue;
+    const normalized = correlation / Math.sqrt(energyA * energyB);
+    if (normalized > bestCorrelation) {
+      bestCorrelation = normalized;
+      bestLag = lag;
+    }
+  }
+
+  if (!bestLag || bestCorrelation < MP3_MIN_CONFIDENCE) return null;
+  return {
+    midi: frequencyToMidi(sampleRate / bestLag),
+    confidence: bestCorrelation,
+    rms,
+  };
+}
+
+function smoothPitchFrames(frames) {
+  const smoothed = frames.map((frame) => ({ ...frame }));
+
+  for (let index = 1; index < smoothed.length - 1; index += 1) {
+    const previous = smoothed[index - 1].midi;
+    const current = smoothed[index].midi;
+    const next = smoothed[index + 1].midi;
+
+    if (current === null && previous !== null && previous === next) {
+      smoothed[index].midi = previous;
+      smoothed[index].rms = (smoothed[index - 1].rms + smoothed[index + 1].rms) / 2;
+    } else if (current !== null && previous !== null && next !== null && previous === next && current !== previous) {
+      smoothed[index].midi = previous;
+    }
+  }
+
+  return smoothed;
+}
+
+function pitchFramesToNotes(frames) {
+  const notes = [];
+  let active = null;
+
+  const closeActive = (endTime) => {
+    if (!active) return;
+    const duration = endTime - active.startTime;
+    if (duration >= MP3_ANALYSIS_HOP_SECONDS * 1.5) {
+      const foldedMidi = foldIntoPlayableRange(active.midi);
+      notes.push({
+        midi: foldedMidi,
+        originalMidi: active.midi,
+        originalName: midiToName(active.midi),
+        wasConverted: foldedMidi !== active.midi,
+        sourceTime: active.startTime,
+        sourceDuration: duration,
+        velocity: Math.min(1, Math.max(0.35, active.rms / active.count / 0.08)),
+      });
+    }
+    active = null;
+  };
+
+  for (const frame of frames) {
+    if (frame.midi === null) {
+      closeActive(frame.time);
+      continue;
+    }
+
+    if (!active) {
+      active = {
+        midi: frame.midi,
+        startTime: frame.time,
+        lastTime: frame.time,
+        rms: frame.rms,
+        count: 1,
+      };
+      continue;
+    }
+
+    if (frame.midi === active.midi) {
+      active.lastTime = frame.time;
+      active.rms += frame.rms;
+      active.count += 1;
+      continue;
+    }
+
+    closeActive(frame.time);
+    active = {
+      midi: frame.midi,
+      startTime: frame.time,
+      lastTime: frame.time,
+      rms: frame.rms,
+      count: 1,
+    };
+  }
+
+  closeActive((frames.at(-1)?.time ?? 0) + MP3_ANALYSIS_HOP_SECONDS);
+  return notes;
+}
+
+async function extractMp3Notes(audioBuffer, analysisDuration) {
+  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, index) =>
+    audioBuffer.getChannelData(index),
+  );
+  const frame = new Float32Array(MP3_ANALYSIS_WINDOW_SIZE);
+  const hopSamples = Math.round(MP3_ANALYSIS_HOP_SECONDS * MP3_ANALYSIS_SAMPLE_RATE);
+  const totalAnalysisSamples = Math.max(0, Math.floor(analysisDuration * MP3_ANALYSIS_SAMPLE_RATE) - MP3_ANALYSIS_WINDOW_SIZE);
+  const totalFrames = Math.max(1, Math.floor(totalAnalysisSamples / hopSamples));
+  const frames = [];
+
+  for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
+    const targetStart = frameIndex * hopSamples;
+
+    for (let offset = 0; offset < MP3_ANALYSIS_WINDOW_SIZE; offset += 1) {
+      const sourceIndex = Math.min(
+        audioBuffer.length - 1,
+        Math.floor(((targetStart + offset) / MP3_ANALYSIS_SAMPLE_RATE) * audioBuffer.sampleRate),
+      );
+      let sample = 0;
+      for (const channel of channels) sample += channel[sourceIndex] ?? 0;
+      frame[offset] = sample / channels.length;
+    }
+
+    const detected = detectPitch(frame, MP3_ANALYSIS_SAMPLE_RATE);
+    frames.push({
+      time: targetStart / MP3_ANALYSIS_SAMPLE_RATE,
+      midi: detected?.midi ?? null,
+      rms: detected?.rms ?? 0,
+      confidence: detected?.confidence ?? 0,
+    });
+
+    if (frameIndex % 24 === 0) {
+      elements.loadingText.textContent = `Analyzing MP3 locally… ${Math.round((frameIndex / totalFrames) * 100)}%`;
+      await sleep(0);
+    }
+  }
+
+  return pitchFramesToNotes(smoothPitchFrames(frames));
 }
 
 function splitDelay(seconds) {
@@ -240,6 +429,17 @@ function renderPlan() {
   elements.statDuration.textContent = formatClock(plan.duration);
 
   const notices = [];
+  if (state.sourceType === "mp3") {
+    notices.push(
+      "MP3 import is experimental. It works best on clear single-note melodies; chords, drums, vocals, and noisy mixes can create wrong notes.",
+    );
+    if (state.analysisMeta?.capped) {
+      notices.push(`Only the first ${formatClock(state.analysisMeta.analyzedDuration)} were analyzed for browser stability.`);
+    }
+    if (state.analysisMeta?.notesCapped) {
+      notices.push(`The MP3 produced a lot of changes, so the note list was capped at ${MP3_MAX_EXTRACTED_NOTES.toLocaleString()} notes.`);
+    }
+  }
   if (state.convertedNotes) {
     notices.push(
       `${state.convertedNotes.toLocaleString()} note${state.convertedNotes === 1 ? " was" : "s were"} outside F#3-F#5 and shifted by octaves into the playable range.`,
@@ -548,6 +748,248 @@ async function copyText(text, successMessage) {
   }
 }
 
+function setMultiplayerStatus(text, connected = false) {
+  elements.multiplayerStatus.innerHTML = `<i></i> ${text}`;
+  elements.multiplayerStatus.classList.toggle("connected", connected);
+}
+
+function encodeSignal(payload) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function decodeSignal(code) {
+  const binary = atob(code.trim());
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function cleanupMultiplayer() {
+  state.dataChannel?.close();
+  state.peerConnection?.close();
+  state.dataChannel = null;
+  state.peerConnection = null;
+  state.incomingChunks.clear();
+  setMultiplayerStatus("Offline");
+}
+
+function waitForIceGathering(peerConnection) {
+  if (peerConnection.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(resolve, 2500);
+    peerConnection.addEventListener("icegatheringstatechange", () => {
+      if (peerConnection.iceGatheringState === "complete") {
+        window.clearTimeout(timeout);
+        resolve();
+      }
+    });
+  });
+}
+
+function createLocalPeerConnection() {
+  if (!("RTCPeerConnection" in window)) {
+    throw new Error("This browser does not support WebRTC multiplayer.");
+  }
+
+  const peerConnection = new RTCPeerConnection({ iceServers: [] });
+  peerConnection.ondatachannel = (event) => setupDataChannel(event.channel);
+  peerConnection.onconnectionstatechange = () => {
+    const stateName = peerConnection.connectionState;
+    if (stateName === "connected") setMultiplayerStatus("Connected", true);
+    if (["failed", "closed", "disconnected"].includes(stateName)) setMultiplayerStatus(stateName);
+  };
+  state.peerConnection = peerConnection;
+  return peerConnection;
+}
+
+function setupDataChannel(channel) {
+  state.dataChannel = channel;
+  channel.onopen = () => {
+    setMultiplayerStatus("Connected", true);
+    elements.multiplayerHelp.textContent = "Connected. Host can press Sync song or Preview to share playback.";
+    sendCurrentPlanToPeer();
+  };
+  channel.onclose = () => setMultiplayerStatus("Closed");
+  channel.onerror = () => setMultiplayerStatus("Error");
+  channel.onmessage = (event) => handleMultiplayerMessage(event.data);
+}
+
+function sendMultiplayerMessage(payload) {
+  const channel = state.dataChannel;
+  if (!channel || channel.readyState !== "open") return false;
+
+  const text = JSON.stringify(payload);
+  if (text.length <= MULTIPLAYER_CHUNK_SIZE) {
+    channel.send(text);
+    return true;
+  }
+
+  const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const total = Math.ceil(text.length / MULTIPLAYER_CHUNK_SIZE);
+  for (let index = 0; index < total; index += 1) {
+    channel.send(JSON.stringify({
+      type: "chunk",
+      id,
+      index,
+      total,
+      data: text.slice(index * MULTIPLAYER_CHUNK_SIZE, (index + 1) * MULTIPLAYER_CHUNK_SIZE),
+    }));
+  }
+  return true;
+}
+
+function handleMultiplayerMessage(rawMessage) {
+  let message;
+  try {
+    message = JSON.parse(rawMessage);
+  } catch {
+    return;
+  }
+
+  if (message.type === "chunk") {
+    const chunks = state.incomingChunks.get(message.id) ?? [];
+    chunks[message.index] = message.data;
+    state.incomingChunks.set(message.id, chunks);
+    if (chunks.filter(Boolean).length === message.total) {
+      state.incomingChunks.delete(message.id);
+      handleMultiplayerMessage(chunks.join(""));
+    }
+    return;
+  }
+
+  if (message.type === "plan") applyMultiplayerPlan(message);
+  if (message.type === "play") previewPlan({ broadcast: false, delayMs: message.delayMs ?? 0 });
+  if (message.type === "stop") stopPreview();
+}
+
+function currentPlanPayload() {
+  if (!state.rawNotes.length) return null;
+  return {
+    type: "plan",
+    sourceType: state.sourceType,
+    convertedNotes: state.convertedNotes,
+    analysisMeta: state.analysisMeta,
+    settings: {
+      startOffset: elements.startOffset.value,
+      tempoScale: elements.tempoScale.value,
+      mergeNotes: elements.mergeNotes.checked,
+    },
+    notes: state.rawNotes.map((note) => ({
+      m: note.midi,
+      o: note.originalMidi,
+      t: Number(note.sourceTime.toFixed(4)),
+      d: Number((note.sourceDuration ?? 0).toFixed(4)),
+      v: Number((note.velocity ?? 0.8).toFixed(3)),
+      c: Boolean(note.wasConverted),
+    })),
+  };
+}
+
+function sendCurrentPlanToPeer() {
+  const payload = currentPlanPayload();
+  if (!payload) return false;
+  return sendMultiplayerMessage(payload);
+}
+
+function applyMultiplayerPlan(message) {
+  stopPreview();
+  state.file = null;
+  state.sourceType = message.sourceType ?? "multiplayer";
+  state.analysisMeta = message.analysisMeta ?? null;
+  state.convertedNotes = message.convertedNotes ?? 0;
+  state.rawNotes = message.notes.map((note) => ({
+    midi: note.m,
+    originalMidi: note.o ?? note.m,
+    originalName: midiToName(note.o ?? note.m),
+    wasConverted: Boolean(note.c),
+    sourceTime: note.t,
+    sourceDuration: note.d,
+    velocity: note.v,
+  }));
+
+  elements.startOffset.value = message.settings?.startOffset ?? elements.startOffset.value;
+  elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
+  elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
+  elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
+  elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
+  elements.fileName.textContent = "Shared multiplayer song";
+  elements.fileMeta.textContent = `${state.rawNotes.length.toLocaleString()} notes synced over LAN · no file uploaded`;
+  elements.fileCard.classList.remove("hidden");
+  elements.dropZone.classList.add("hidden");
+  renderPlan();
+  showToast("Multiplayer song synced.");
+}
+
+async function hostMultiplayerRoom() {
+  try {
+    cleanupMultiplayer();
+    const peerConnection = createLocalPeerConnection();
+    setupDataChannel(peerConnection.createDataChannel("babft-sync", { ordered: true }));
+    await peerConnection.setLocalDescription(await peerConnection.createOffer());
+    await waitForIceGathering(peerConnection);
+    elements.multiplayerCode.value = encodeSignal({
+      kind: "babft-lan-offer",
+      description: peerConnection.localDescription,
+    });
+    elements.multiplayerHelp.textContent = "Send this invite to your friend. When they send an answer back, paste it and click Use answer.";
+    setMultiplayerStatus("Invite ready");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "Could not create multiplayer invite.");
+  }
+}
+
+async function joinMultiplayerRoom() {
+  try {
+    cleanupMultiplayer();
+    const signal = decodeSignal(elements.multiplayerCode.value);
+    if (signal.kind !== "babft-lan-offer") throw new Error("Paste a host invite code first.");
+    const peerConnection = createLocalPeerConnection();
+    await peerConnection.setRemoteDescription(signal.description);
+    await peerConnection.setLocalDescription(await peerConnection.createAnswer());
+    await waitForIceGathering(peerConnection);
+    elements.multiplayerCode.value = encodeSignal({
+      kind: "babft-lan-answer",
+      description: peerConnection.localDescription,
+    });
+    elements.multiplayerHelp.textContent = "Send this answer back to the host. Keep this page open.";
+    setMultiplayerStatus("Answer ready");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "Could not join that invite.");
+  }
+}
+
+async function connectMultiplayerAnswer() {
+  try {
+    if (!state.peerConnection) throw new Error("Create a host invite first.");
+    const signal = decodeSignal(elements.multiplayerCode.value);
+    if (signal.kind !== "babft-lan-answer") throw new Error("Paste your friend's answer code first.");
+    await state.peerConnection.setRemoteDescription(signal.description);
+    elements.multiplayerHelp.textContent = "Connecting. If it fails, confirm both players are on the same WiFi or Radmin VPN.";
+    setMultiplayerStatus("Connecting");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "Could not use that answer.");
+  }
+}
+
+function syncMultiplayerSong() {
+  if (!state.dataChannel || state.dataChannel.readyState !== "open") {
+    showToast("Connect multiplayer first.");
+    return;
+  }
+  if (!sendCurrentPlanToPeer()) {
+    showToast("Load a MIDI or MP3 before syncing.");
+    return;
+  }
+  showToast("Song sent to connected friend.");
+}
+
 async function handleMidi(file) {
   if (!file) return;
   if (!/\.midi?$/i.test(file.name)) {
@@ -586,6 +1028,8 @@ async function handleMidi(file) {
     state.file = file;
     state.rawNotes = allNotes;
     state.convertedNotes = allNotes.filter((note) => note.wasConverted).length;
+    state.sourceType = "midi";
+    state.analysisMeta = null;
     elements.fileName.textContent = file.name;
     elements.fileMeta.textContent = `${formatFileSize(file.size)} · ${allNotes.length.toLocaleString()} notes ready · local only`;
     elements.fileCard.classList.remove("hidden");
@@ -600,11 +1044,82 @@ async function handleMidi(file) {
   }
 }
 
+async function handleMp3(file) {
+  if (!file) return;
+  if (file.size > MAX_MP3_SIZE) {
+    showToast("That MP3 is over 60 MB. Choose a smaller file to protect browser memory.");
+    return;
+  }
+
+  stopPreview();
+  showLoading("Analyzing MP3 (experimental)…", "Decoding audio locally. Nothing is uploaded.");
+  await sleep(80);
+
+  let decodeContext = null;
+  try {
+    const buffer = await file.arrayBuffer();
+    decodeContext = new AudioContext();
+    const audioBuffer = await decodeContext.decodeAudioData(buffer.slice(0));
+    const analyzedDuration = Math.min(audioBuffer.duration, MP3_ANALYSIS_MAX_SECONDS);
+    let notes = await extractMp3Notes(audioBuffer, analyzedDuration);
+    const notesCapped = notes.length > MP3_MAX_EXTRACTED_NOTES;
+    if (notesCapped) notes = notes.slice(0, MP3_MAX_EXTRACTED_NOTES);
+
+    if (!notes.length) {
+      throw new Error("No stable notes were detected. Try a clearer melody, louder audio, or a MIDI file.");
+    }
+
+    state.file = file;
+    state.rawNotes = notes;
+    state.convertedNotes = notes.filter((note) => note.wasConverted).length;
+    state.sourceType = "mp3";
+    state.analysisMeta = {
+      capped: audioBuffer.duration > MP3_ANALYSIS_MAX_SECONDS,
+      analyzedDuration,
+      originalDuration: audioBuffer.duration,
+      notesCapped,
+    };
+    elements.fileName.textContent = file.name;
+    elements.fileMeta.textContent = `${formatFileSize(file.size)} · MP3 experimental · ${notes.length.toLocaleString()} notes detected`;
+    elements.fileCard.classList.remove("hidden");
+    elements.dropZone.classList.add("hidden");
+    renderPlan();
+    showToast("Experimental MP3 analysis finished locally.");
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || "That MP3 could not be analyzed.");
+  } finally {
+    if (decodeContext) decodeContext.close().catch(() => {});
+    hideLoading();
+  }
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const fileName = file.name.toLowerCase();
+  const isMp3 = fileName.endsWith(".mp3") || file.type === "audio/mpeg";
+  const isMidi = /\.midi?$/.test(fileName) || file.type.includes("midi");
+
+  if (isMp3) {
+    handleMp3(file);
+    return;
+  }
+
+  if (isMidi) {
+    handleMidi(file);
+    return;
+  }
+
+  showToast("Please choose a .mid, .midi, or experimental .mp3 file.");
+}
+
 function removeMidi() {
   stopPreview();
   state.file = null;
   state.rawNotes = [];
   state.convertedNotes = 0;
+  state.sourceType = null;
+  state.analysisMeta = null;
   state.plan = null;
   elements.midiFile.value = "";
   elements.fileCard.classList.add("hidden");
@@ -681,7 +1196,7 @@ function setPlaybackButtons(isPlaying) {
   elements.stopButton.disabled = !isPlaying;
 }
 
-function stopPreview() {
+function stopPreview({ broadcast = false } = {}) {
   window.clearTimeout(state.stopTimer);
   state.stopTimer = null;
   state.previewStartedAt = null;
@@ -689,18 +1204,26 @@ function stopPreview() {
   state.synth?.stopAll(true);
   clearHighlights();
   setPlaybackButtons(false);
+  if (broadcast) sendMultiplayerMessage({ type: "stop" });
 }
 
-async function previewPlan() {
+async function previewPlan({ broadcast = true, delayMs = 0 } = {}) {
   if (!state.plan) return;
   if (state.stopTimer) {
-    stopPreview();
+    stopPreview({ broadcast });
     return;
   }
 
   showLoading("Loading the BABFT SoundFont…", "Preview audio is generated on this device.");
   try {
     const synth = await ensureSynth();
+    if (broadcast && state.dataChannel?.readyState === "open") {
+      sendCurrentPlanToPeer();
+      sendMultiplayerMessage({ type: "play", delayMs: 500 });
+      await sleep(500);
+    } else if (delayMs > 0) {
+      await sleep(delayMs);
+    }
     stopPreview();
     setPlaybackButtons(true);
     state.previewStartedAt = performance.now();
@@ -814,10 +1337,10 @@ function activateView(button) {
   }
 }
 
-elements.midiFile.addEventListener("change", (event) => handleMidi(event.target.files[0]));
+elements.midiFile.addEventListener("change", (event) => handleFile(event.target.files[0]));
 elements.removeFile.addEventListener("click", removeMidi);
 elements.previewButton.addEventListener("click", previewPlan);
-elements.stopButton.addEventListener("click", stopPreview);
+elements.stopButton.addEventListener("click", () => stopPreview({ broadcast: true }));
 elements.copyInstructions.addEventListener("click", () =>
   copyText(buildInstructionsText(), "Build steps copied."),
 );
@@ -826,6 +1349,10 @@ elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
+elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
+elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
+elements.connectAnswer.addEventListener("click", connectMultiplayerAnswer);
+elements.syncMultiplayer.addEventListener("click", syncMultiplayerSong);
 
 document.querySelectorAll(".view-tabs button").forEach((button) => {
   button.addEventListener("click", () => activateView(button));
@@ -845,7 +1372,7 @@ document.querySelectorAll(".view-tabs button").forEach((button) => {
   });
 });
 
-elements.dropZone.addEventListener("drop", (event) => handleMidi(event.dataTransfer.files[0]));
+elements.dropZone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
 window.addEventListener("beforeunload", stopPreview);
 
 renderKeyboard();
