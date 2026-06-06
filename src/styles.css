@@ -534,7 +534,7 @@ h1 em {
 .workspace {
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
-  min-height: 670px;
+  min-height: 560px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -543,7 +543,7 @@ h1 em {
 }
 
 .control-panel {
-  padding: 25px;
+  padding: 18px;
   border-right: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.015);
 }
@@ -552,7 +552,7 @@ h1 em {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 
 .step-number {
@@ -585,12 +585,12 @@ h1 em {
 
 .drop-zone {
   display: flex;
-  min-height: 190px;
+  min-height: 128px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   margin-bottom: 14px;
-  padding: 22px;
+  padding: 16px;
   border: 1px dashed rgba(200, 255, 80, 0.32);
   border-radius: var(--radius-md);
   background: linear-gradient(145deg, rgba(200, 255, 80, 0.055), rgba(140, 109, 255, 0.045));
@@ -616,9 +616,9 @@ h1 em {
 
 .upload-icon {
   display: grid;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 13px;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
   place-items: center;
   border: 1px solid rgba(200, 255, 80, 0.2);
   border-radius: 13px;
@@ -638,7 +638,7 @@ h1 em {
 }
 
 .drop-zone small {
-  margin-top: 14px;
+  margin-top: 10px;
   color: var(--muted);
   font-size: 9px;
   font-weight: 750;
@@ -762,12 +762,12 @@ h1 em {
 
 .settings {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   margin-top: 0;
 }
 
 .setting {
-  padding: 15px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.018);
@@ -777,7 +777,7 @@ h1 em {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 13px;
+  margin-bottom: 10px;
   font-size: 11px;
   font-weight: 750;
 }
@@ -810,7 +810,7 @@ input[type="range"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 15px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.018);
@@ -870,21 +870,10 @@ input[type="range"] {
   transform: translateX(15px);
 }
 
-.server-card {
-  display: grid;
-  gap: 11px;
-  padding: 15px;
-  border: 1px solid rgba(140, 109, 255, 0.2);
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 88% 12%, rgba(140, 109, 255, 0.12), transparent 34%),
-    rgba(255, 255, 255, 0.02);
-}
-
 .split-card {
   display: grid;
   gap: 10px;
-  padding: 15px;
+  padding: 12px;
   border: 1px solid rgba(200, 255, 80, 0.16);
   border-radius: 14px;
   background:
@@ -930,71 +919,8 @@ input[type="range"] {
   border-color: rgba(200, 255, 80, 0.36);
 }
 
-.server-heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.server-heading div,
-.url-setting {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.server-heading strong,
-.url-setting span {
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.server-heading small,
-.url-setting small {
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1.5;
-}
-
-.server-heading > span {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 7px;
-  border: 1px solid rgba(255, 102, 125, 0.25);
-  border-radius: 100px;
-  color: #ffb6c2;
-  font-size: 7px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-}
-
-.url-setting input {
-  width: 100%;
-  min-height: 35px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  outline: 0;
-  background: rgba(0, 0, 0, 0.18);
-  color: var(--text);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.url-setting input:focus {
-  border-color: rgba(140, 109, 255, 0.4);
-}
-
-.url-setting input:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-
 .multiplayer-card {
-  padding: 15px;
+  padding: 12px;
   border: 1px solid rgba(200, 255, 80, 0.15);
   border-radius: 14px;
   background:
@@ -1242,7 +1168,7 @@ input[type="range"] {
 
 .empty-state {
   display: flex;
-  min-height: 590px;
+  min-height: 450px;
   flex-direction: column;
   align-items: center;
   justify-content: center;

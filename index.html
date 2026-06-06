@@ -28,7 +28,7 @@
         <a href="#guide">How it works</a>
         <a href="#notes">Notes</a>
       </nav>
-      <span class="privacy-pill"><i></i> Local by default</span>
+      <span class="privacy-pill"><i></i> 100% local</span>
     </header>
 
     <main>
@@ -49,7 +49,7 @@
             <span class="shield" aria-hidden="true">✓</span>
             <p>
               <strong>Your MIDI never leaves your device.</strong>
-              MP3 can stay local too, or you can use a cloud MP3 API for stronger transcription.
+              It is read in this browser tab only. No uploads, no cloud API, no account.
             </p>
           </div>
         </div>
@@ -86,8 +86,8 @@
             <div class="panel-heading">
               <span class="step-number">01</span>
               <div>
-                <h3>Choose MIDI or MP3</h3>
-                <p>Local by default, cloud API optional</p>
+                <h3>Choose MIDI</h3>
+                <p>Local-only BABFT notes</p>
               </div>
             </div>
 
@@ -95,49 +95,17 @@
               <details class="control-section" open>
                 <summary>
                   <span>File</span>
-                  <small>MIDI local, MP3 max 5 MB</small>
+                  <small>MIDI local only</small>
                 </summary>
 
             <label class="drop-zone" id="dropZone" for="midiFile">
-              <input id="midiFile" type="file" accept=".mid,.midi,.mp3,audio/midi,audio/x-midi,audio/mpeg" />
+              <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
               <span class="upload-icon" aria-hidden="true">↥</span>
-              <strong>Drop MIDI or MP3 here</strong>
+              <strong>Drop MIDI here</strong>
               <span>or click to browse</span>
-              <small>.mid, .midi, or .mp3 - MP3 max 5 MB</small>
+              <small>.mid or .midi - never uploaded</small>
             </label>
 
-              </details>
-
-              <details class="control-section">
-                <summary>
-                  <span>MP3 API</span>
-                  <small>Cloud, optional</small>
-                </summary>
-
-            <div class="server-card">
-              <div class="server-heading">
-                <div>
-                  <strong>Cloud MP3 converter</strong>
-                  <small>Optional Basic Pitch API for better MP3-to-MIDI.</small>
-                </div>
-                <span>Experimental</span>
-              </div>
-
-              <label class="toggle-row">
-                <span>
-                  <strong>Use MP3 API</strong>
-                  <small>Sends MP3 only to your API server, not Vercel. Disabled by default.</small>
-                </span>
-                <input id="selfHostedMp3" type="checkbox" />
-                <i aria-hidden="true"></i>
-              </label>
-
-              <label class="url-setting" for="mp3ServerUrl">
-                <span>API URL</span>
-                <input id="mp3ServerUrl" type="url" value="" placeholder="https://your-mp3-api.example.com" spellcheck="false" disabled />
-                <small>The backend deletes temp files, caps uploads at 5 MB, and can stop when the weekly budget is reached.</small>
-              </label>
-            </div>
               </details>
 
             <div class="file-card hidden" id="fileCard">
@@ -149,10 +117,10 @@
               <button id="removeFile" type="button" aria-label="Remove MIDI">×</button>
             </div>
 
-              <details class="control-section" open>
+              <details class="control-section">
                 <summary>
-                  <span>MIDI controls</span>
-                  <small>Timing, preview, instruments</small>
+                  <span>Simple controls</span>
+                  <small>Timing and preview</small>
                 </summary>
 
             <div class="settings">
@@ -194,30 +162,22 @@
 
               <label class="toggle-row">
                 <span>
-                  <strong>Include drums/percussion</strong>
-                  <small>Add MIDI kicks, snares, claps, hats, and cymbals as mapped BABFT notes.</small>
-                </span>
-                <input id="includePercussion" type="checkbox" />
-                <i aria-hidden="true"></i>
-              </label>
-
-              <label class="toggle-row">
-                <span>
-                  <strong>Include other instruments</strong>
-                  <small>Add guitar, strings, brass, and other non-piano MIDI tracks. Disabled by default.</small>
-                </span>
-                <input id="includeOtherInstruments" type="checkbox" />
-                <i aria-hidden="true"></i>
-              </label>
-
-              <label class="toggle-row">
-                <span>
                   <strong>Auto-follow preview</strong>
                   <small>Keeps the active green timeline step in view.</small>
                 </span>
                 <input id="autoFollow" type="checkbox" checked />
                 <i aria-hidden="true"></i>
               </label>
+            </div>
+              </details>
+
+              <details class="control-section">
+                <summary>
+                  <span>Optional teamwork</span>
+                  <small>Split or LAN sync</small>
+                </summary>
+
+            <div class="settings">
 
               <div class="split-card">
                 <div>
@@ -236,7 +196,7 @@
                 <div class="multiplayer-heading">
                   <div>
                     <strong>Multiplayer LAN</strong>
-                    <small>Same WiFi or Radmin VPN. MIDI plans only; MP3 plans do not sync.</small>
+                    <small>Same WiFi or Radmin VPN. MIDI plan sharing only.</small>
                   </div>
                   <span id="multiplayerStatus"><i></i> Offline</span>
                 </div>
@@ -287,7 +247,7 @@
                 <i></i><i></i><i></i><i></i>
               </div>
               <h3>Your build plan will appear here</h3>
-              <p>Choose a MIDI file, or try an experimental MP3, to convert notes into BABFT's range.</p>
+              <p>Choose a MIDI file to convert notes into BABFT's playable range.</p>
               <div class="range-card">
                 <span>Playable range</span>
                 <strong>F#3</strong>
@@ -342,8 +302,8 @@
               <div class="view-panel" id="instructionsView">
                 <div class="instructions-heading">
                   <div>
-                    <h3>Block-by-block instructions</h3>
-                    <p>Start with a Button or seat, then follow every shown binding.</p>
+                    <h3>Simple build steps</h3>
+                    <p>Each step shows: wait with Delay, then play the Music Note.</p>
                   </div>
                   <button class="copy-button" id="copyInstructions" type="button">Copy steps</button>
                 </div>
@@ -366,7 +326,7 @@
                 </div>
                 <div class="note-table-wrap">
                   <table>
-                    <thead><tr><th>#</th><th>Start</th><th>Key</th><th>Source</th><th>Property clicks</th><th>Duration</th></tr></thead>
+                    <thead><tr><th>#</th><th>Start</th><th>BABFT note</th><th>Property Tool key</th><th>Duration</th></tr></thead>
                     <tbody id="noteTableBody"></tbody>
                   </table>
                 </div>
@@ -437,7 +397,7 @@
     <footer>
       <a class="brand" href="#"><span class="brand-mark"><span></span><span></span><span></span></span><span>BABFT <strong>Music Notes</strong></span></a>
       <p>Made for builders who would rather spend time making music.</p>
-      <span class="privacy-pill"><i></i> Files stay local unless you choose MP3 API</span>
+      <span class="privacy-pill"><i></i> Files stay local</span>
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

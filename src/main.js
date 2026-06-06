@@ -9,64 +9,12 @@ const MAX_DELAY = 10;
 const NOTE_SUSTAIN = 0.85;
 const PIANO_ROLL_LEAD_TIME = 3;
 const MAX_MIDI_SIZE = 25 * 1024 * 1024;
-const MAX_MP3_SIZE = 5 * 1024 * 1024;
-const MP3_ANALYSIS_MAX_SECONDS = 240;
-const MP3_ANALYSIS_SAMPLE_RATE = 11025;
-const MP3_ANALYSIS_WINDOW_SIZE = 1024;
-const MP3_ANALYSIS_HOP_SECONDS = 0.12;
-const MP3_MIN_RMS = 0.018;
-const MP3_MIN_CONFIDENCE = 0.42;
-const MP3_MAX_EXTRACTED_NOTES = 2600;
-const MP3_SERVER_URL_KEY = "babft-mp3-server-url";
 const MULTIPLAYER_CHUNK_SIZE = 12000;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const GM_DRUM_NAMES = {
-  35: "Acoustic Bass Drum",
-  36: "Bass Drum",
-  37: "Side Stick",
-  38: "Acoustic Snare",
-  39: "Hand Clap",
-  40: "Electric Snare",
-  41: "Low Floor Tom",
-  42: "Closed Hi-Hat",
-  43: "High Floor Tom",
-  44: "Pedal Hi-Hat",
-  45: "Low Tom",
-  46: "Open Hi-Hat",
-  47: "Low-Mid Tom",
-  48: "High-Mid Tom",
-  49: "Crash Cymbal",
-  50: "High Tom",
-  51: "Ride Cymbal",
-  52: "Chinese Cymbal",
-  53: "Ride Bell",
-  54: "Tambourine",
-  55: "Splash Cymbal",
-  56: "Cowbell",
-  57: "Crash Cymbal 2",
-  58: "Vibraslap",
-  59: "Ride Cymbal 2",
-  60: "High Bongo",
-  61: "Low Bongo",
-  62: "Mute Conga",
-  63: "Open Conga",
-  64: "Low Conga",
-  65: "High Timbale",
-  66: "Low Timbale",
-  67: "High Agogo",
-  68: "Low Agogo",
-  69: "Cabasa",
-  70: "Maracas",
-  75: "Claves",
-  76: "High Wood Block",
-  77: "Low Wood Block",
-};
 
 const elements = {
   midiFile: document.querySelector("#midiFile"),
   dropZone: document.querySelector("#dropZone"),
-  selfHostedMp3: document.querySelector("#selfHostedMp3"),
-  mp3ServerUrl: document.querySelector("#mp3ServerUrl"),
   fileCard: document.querySelector("#fileCard"),
   fileName: document.querySelector("#fileName"),
   fileMeta: document.querySelector("#fileMeta"),
@@ -78,8 +26,6 @@ const elements = {
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
   mergeNotes: document.querySelector("#mergeNotes"),
-  includePercussion: document.querySelector("#includePercussion"),
-  includeOtherInstruments: document.querySelector("#includeOtherInstruments"),
   autoFollow: document.querySelector("#autoFollow"),
   builderPart: document.querySelector("#builderPart"),
   builderPartHint: document.querySelector("#builderPartHint"),
@@ -163,77 +109,27 @@ function foldIntoPlayableRange(midi) {
   return foldedMidi;
 }
 
-function getTrackMeta(track, index) {
-  const instrumentName = cleanLabel(track.instrument?.name, "");
+function isPercussionTrack(track) {
   const family = cleanLabel(track.instrument?.family, "");
-  const trackName = cleanLabel(track.name, "");
-  const label = cleanLabel(
-    [trackName, instrumentName].filter(Boolean).join(" / "),
-    `Track ${index + 1}`,
-  );
-  const searchable = `${label} ${family}`.toLowerCase();
-  const isPercussion =
+  const searchable = `${track.name ?? ""} ${track.instrument?.name ?? ""} ${family}`.toLowerCase();
+  return (
     track.channel === 9 ||
     track.notes?.some((note) => note.channel === 9) ||
     track.instrument?.percussion === true ||
     family.toLowerCase().includes("drum") ||
-    /\b(drum|drums|percussion|kit|snare|clap|hi-hat|hihat|kick|cymbal)\b/.test(searchable);
-  const isPianoLike =
-    !isPercussion &&
-    (family.toLowerCase().includes("piano") ||
-      /\b(piano|keyboard|keys|electric piano|grand|upright|harpsichord|clav|celesta)\b/.test(searchable));
-
-  return {
-    label,
-    family,
-    isPercussion,
-    isPianoLike: isPianoLike || (!instrumentName && !family),
-  };
-}
-
-function mapPercussionNote(midi) {
-  const label = GM_DRUM_NAMES[midi] ?? `Drum ${midi}`;
-  const lower = label.toLowerCase();
-  let targetMidi = 54; // F#3, BABFT default note.
-
-  if (lower.includes("snare")) targetMidi = 56; // G#3
-  else if (lower.includes("clap")) targetMidi = 58; // A#3
-  else if (lower.includes("hi-hat") || lower.includes("hihat")) targetMidi = 61; // C#4
-  else if (lower.includes("cymbal") || lower.includes("tambourine")) targetMidi = 66; // F#4
-  else if (lower.includes("tom") || lower.includes("bongo") || lower.includes("conga")) targetMidi = 59; // B3
-  else if (lower.includes("cowbell") || lower.includes("bell") || lower.includes("agogo")) targetMidi = 68; // G#4
-  else if (lower.includes("claves") || lower.includes("wood") || lower.includes("stick")) targetMidi = 63; // D#4
-  else if (lower.includes("shaker") || lower.includes("maracas") || lower.includes("cabasa")) targetMidi = 64; // E4
-
-  return {
-    label,
-    midi: targetMidi,
-    name: midiToName(targetMidi),
-  };
-}
-
-function sourceLabelForNote(note) {
-  if (note.sourceKind === "percussion") return note.sourceLabel ?? "Percussion";
-  if (note.sourceKind === "instrument") return note.sourceLabel ?? "Other instrument";
-  if (note.sourceKind === "mp3-server") return "MP3 API";
-  if (note.sourceKind === "mp3-local") return "Local MP3";
-  return note.sourceLabel ?? "Piano / keys";
+    /\b(drum|drums|percussion|kit|snare|clap|hi-hat|hihat|kick|cymbal)\b/.test(searchable)
+  );
 }
 
 function keyLabelForNote(note) {
-  if (note.sourceKind === "percussion") {
-    return `${note.name} (${note.sourceLabel})`;
-  }
   return note.wasConverted ? `${note.name} (from ${note.originalName})` : note.name;
 }
 
 function compactNoteLabel(note) {
-  if (note.sourceKind === "percussion") return `${note.name} ${note.sourceLabel}`;
-  if (note.sourceKind === "instrument") return `${note.name} ${note.sourceLabel}`;
   return note.name;
 }
 
-function createMelodicNote(note, source = {}) {
+function createMidiNote(note) {
   const originalMidi = Math.round(Number(note.midi));
   const foldedMidi = foldIntoPlayableRange(originalMidi);
   return {
@@ -241,17 +137,10 @@ function createMelodicNote(note, source = {}) {
     originalMidi,
     originalName: midiToName(originalMidi),
     wasConverted: foldedMidi !== originalMidi,
-    wasMapped: false,
-    sourceKind: source.kind ?? "piano",
-    sourceLabel: source.label ?? "Piano / keys",
     sourceTime: Number(note.time ?? note.sourceTime ?? 0),
     sourceDuration: Number(note.duration ?? note.sourceDuration ?? NOTE_SUSTAIN),
     velocity: Math.min(1, Math.max(0.05, Number(note.velocity ?? 0.8))),
   };
-}
-
-function isMp3Source(sourceType = state.sourceType) {
-  return sourceType === "mp3" || sourceType === "mp3-server";
 }
 
 function roundDelay(value) {
@@ -278,10 +167,6 @@ function formatFileSize(bytes) {
 
 function sleep(ms = 0) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function frequencyToMidi(frequency) {
-  return Math.round(69 + 12 * Math.log2(frequency / 440));
 }
 
 function showToast(message) {
@@ -312,169 +197,6 @@ function updatePreviewVolume() {
       0.015,
     );
   }
-}
-
-function detectPitch(frame, sampleRate) {
-  let rms = 0;
-  for (const sample of frame) rms += sample * sample;
-  rms = Math.sqrt(rms / frame.length);
-  if (rms < MP3_MIN_RMS) return null;
-
-  const minLag = Math.max(8, Math.floor(sampleRate / 1100));
-  const maxLag = Math.min(frame.length - 2, Math.floor(sampleRate / 60));
-  let bestLag = 0;
-  let bestCorrelation = 0;
-
-  for (let lag = minLag; lag <= maxLag; lag += 1) {
-    let correlation = 0;
-    let energyA = 0;
-    let energyB = 0;
-    const limit = frame.length - lag;
-
-    for (let index = 0; index < limit; index += 1) {
-      const a = frame[index];
-      const b = frame[index + lag];
-      correlation += a * b;
-      energyA += a * a;
-      energyB += b * b;
-    }
-
-    if (energyA === 0 || energyB === 0) continue;
-    const normalized = correlation / Math.sqrt(energyA * energyB);
-    if (normalized > bestCorrelation) {
-      bestCorrelation = normalized;
-      bestLag = lag;
-    }
-  }
-
-  if (!bestLag || bestCorrelation < MP3_MIN_CONFIDENCE) return null;
-  return {
-    midi: frequencyToMidi(sampleRate / bestLag),
-    confidence: bestCorrelation,
-    rms,
-  };
-}
-
-function smoothPitchFrames(frames) {
-  const smoothed = frames.map((frame) => ({ ...frame }));
-
-  for (let index = 1; index < smoothed.length - 1; index += 1) {
-    const previous = smoothed[index - 1].midi;
-    const current = smoothed[index].midi;
-    const next = smoothed[index + 1].midi;
-
-    if (current === null && previous !== null && previous === next) {
-      smoothed[index].midi = previous;
-      smoothed[index].rms = (smoothed[index - 1].rms + smoothed[index + 1].rms) / 2;
-    } else if (current !== null && previous !== null && next !== null && previous === next && current !== previous) {
-      smoothed[index].midi = previous;
-    }
-  }
-
-  return smoothed;
-}
-
-function pitchFramesToNotes(frames) {
-  const notes = [];
-  let active = null;
-
-  const closeActive = (endTime) => {
-    if (!active) return;
-    const duration = endTime - active.startTime;
-    if (duration >= MP3_ANALYSIS_HOP_SECONDS * 1.5) {
-      const foldedMidi = foldIntoPlayableRange(active.midi);
-      notes.push({
-        midi: foldedMidi,
-        originalMidi: active.midi,
-        originalName: midiToName(active.midi),
-        wasConverted: foldedMidi !== active.midi,
-        wasMapped: false,
-        sourceKind: "mp3-local",
-        sourceLabel: "Local MP3",
-        sourceTime: active.startTime,
-        sourceDuration: duration,
-        velocity: Math.min(1, Math.max(0.35, active.rms / active.count / 0.08)),
-      });
-    }
-    active = null;
-  };
-
-  for (const frame of frames) {
-    if (frame.midi === null) {
-      closeActive(frame.time);
-      continue;
-    }
-
-    if (!active) {
-      active = {
-        midi: frame.midi,
-        startTime: frame.time,
-        lastTime: frame.time,
-        rms: frame.rms,
-        count: 1,
-      };
-      continue;
-    }
-
-    if (frame.midi === active.midi) {
-      active.lastTime = frame.time;
-      active.rms += frame.rms;
-      active.count += 1;
-      continue;
-    }
-
-    closeActive(frame.time);
-    active = {
-      midi: frame.midi,
-      startTime: frame.time,
-      lastTime: frame.time,
-      rms: frame.rms,
-      count: 1,
-    };
-  }
-
-  closeActive((frames.at(-1)?.time ?? 0) + MP3_ANALYSIS_HOP_SECONDS);
-  return notes;
-}
-
-async function extractMp3Notes(audioBuffer, analysisDuration) {
-  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, index) =>
-    audioBuffer.getChannelData(index),
-  );
-  const frame = new Float32Array(MP3_ANALYSIS_WINDOW_SIZE);
-  const hopSamples = Math.round(MP3_ANALYSIS_HOP_SECONDS * MP3_ANALYSIS_SAMPLE_RATE);
-  const totalAnalysisSamples = Math.max(0, Math.floor(analysisDuration * MP3_ANALYSIS_SAMPLE_RATE) - MP3_ANALYSIS_WINDOW_SIZE);
-  const totalFrames = Math.max(1, Math.floor(totalAnalysisSamples / hopSamples));
-  const frames = [];
-
-  for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
-    const targetStart = frameIndex * hopSamples;
-
-    for (let offset = 0; offset < MP3_ANALYSIS_WINDOW_SIZE; offset += 1) {
-      const sourceIndex = Math.min(
-        audioBuffer.length - 1,
-        Math.floor(((targetStart + offset) / MP3_ANALYSIS_SAMPLE_RATE) * audioBuffer.sampleRate),
-      );
-      let sample = 0;
-      for (const channel of channels) sample += channel[sourceIndex] ?? 0;
-      frame[offset] = sample / channels.length;
-    }
-
-    const detected = detectPitch(frame, MP3_ANALYSIS_SAMPLE_RATE);
-    frames.push({
-      time: targetStart / MP3_ANALYSIS_SAMPLE_RATE,
-      midi: detected?.midi ?? null,
-      rms: detected?.rms ?? 0,
-      confidence: detected?.confidence ?? 0,
-    });
-
-    if (frameIndex % 24 === 0) {
-      elements.loadingText.textContent = `Analyzing MP3 locally… ${Math.round((frameIndex / totalFrames) * 100)}%`;
-      await sleep(0);
-    }
-  }
-
-  return pitchFramesToNotes(smoothPitchFrames(frames));
 }
 
 function splitDelay(seconds) {
@@ -638,36 +360,9 @@ function renderPlan() {
   elements.statDuration.textContent = formatClock(plan.duration);
 
   const notices = [];
-  if (state.sourceType === "mp3" || state.sourceType === "mp3-server") {
-    notices.push(
-      state.sourceType === "mp3-server"
-        ? "MP3 API import is experimental. Basic Pitch is much stronger than the browser analyzer, but dense vocals, drums, and mixes can still create extra notes."
-        : "MP3 import is experimental. It works best on clear single-note melodies; chords, drums, vocals, and noisy mixes can create wrong notes.",
-    );
-    if (state.analysisMeta?.capped) {
-      notices.push(`Only the first ${formatClock(state.analysisMeta.analyzedDuration)} were analyzed for browser stability.`);
-    }
-    if (state.analysisMeta?.notesCapped) {
-      const noteLimit =
-        state.sourceType === "mp3-server"
-          ? state.analysisMeta.maxReturnedNotes ?? state.analysisMeta.notesReturned ?? MP3_MAX_EXTRACTED_NOTES
-          : MP3_MAX_EXTRACTED_NOTES;
-      notices.push(`The MP3 produced a lot of changes, so the note list was capped at ${Number(noteLimit).toLocaleString()} notes.`);
-    }
-  }
   if (state.analysisMeta?.skippedPercussionNotes) {
     notices.push(
-      `${state.analysisMeta.skippedPercussionNotes.toLocaleString()} percussion note${state.analysisMeta.skippedPercussionNotes === 1 ? "" : "s"} were skipped. Turn on Include drums/percussion to add snares, claps, kicks, hats, and cymbals.`,
-    );
-  }
-  if (state.analysisMeta?.skippedOtherInstrumentNotes) {
-    notices.push(
-      `${state.analysisMeta.skippedOtherInstrumentNotes.toLocaleString()} non-piano note${state.analysisMeta.skippedOtherInstrumentNotes === 1 ? "" : "s"} were skipped. Turn on Include other instruments to add them.`,
-    );
-  }
-  if (state.analysisMeta?.mappedPercussionNotes) {
-    notices.push(
-      `${state.analysisMeta.mappedPercussionNotes.toLocaleString()} percussion note${state.analysisMeta.mappedPercussionNotes === 1 ? "" : "s"} were mapped to BABFT Music Note keys for snares, claps, kicks, hats, and cymbals.`,
+      `${state.analysisMeta.skippedPercussionNotes.toLocaleString()} drum MIDI note${state.analysisMeta.skippedPercussionNotes === 1 ? "" : "s"} were skipped because BABFT Music Notes only play pitched notes.`,
     );
   }
   if (state.convertedNotes) {
@@ -928,7 +623,6 @@ function renderNoteTable() {
         <td>${note.id}</td>
         <td>${formatSeconds(event.plannedTime)}</td>
         <td>${keyLabelForNote(note)}</td>
-        <td>${sourceLabelForNote(note)}</td>
         <td>${note.propertyClicks === 0 ? "Default F#3" : `+${note.propertyClicks} from F#3`}</td>
         <td>~${NOTE_SUSTAIN.toFixed(2)}s</td>
       `;
@@ -983,7 +677,7 @@ function buildNotesText() {
   for (const event of slice.events) {
     for (const note of event.notes) {
       lines.push(
-        `Music Note ${note.id}: ${keyLabelForNote(note)} from ${sourceLabelForNote(note)} at ${formatSeconds(event.plannedTime)} (${note.propertyClicks === 0 ? "default F#3" : `increment ${note.propertyClicks}× from F#3`})`,
+        `Music Note ${note.id}: ${keyLabelForNote(note)} at ${formatSeconds(event.plannedTime)} (${note.propertyClicks === 0 ? "default F#3" : `increment ${note.propertyClicks}× from F#3`})`,
       );
     }
   }
@@ -1124,7 +818,6 @@ function handleMultiplayerMessage(rawMessage) {
 
 function currentPlanPayload() {
   if (!state.rawNotes.length) return null;
-  if (isMp3Source()) return null;
   return {
     type: "plan",
     sourceType: state.sourceType,
@@ -1134,8 +827,6 @@ function currentPlanPayload() {
       startOffset: elements.startOffset.value,
       tempoScale: elements.tempoScale.value,
       mergeNotes: elements.mergeNotes.checked,
-      includePercussion: elements.includePercussion.checked,
-      includeOtherInstruments: elements.includeOtherInstruments.checked,
       builderPart: elements.builderPart.value,
     },
     notes: state.rawNotes.map((note) => ({
@@ -1145,9 +836,6 @@ function currentPlanPayload() {
       d: Number((note.sourceDuration ?? 0).toFixed(4)),
       v: Number((note.velocity ?? 0.8).toFixed(3)),
       c: Boolean(note.wasConverted),
-      p: Boolean(note.wasMapped),
-      k: note.sourceKind,
-      l: note.sourceLabel,
     })),
   };
 }
@@ -1169,9 +857,6 @@ function applyMultiplayerPlan(message) {
     originalMidi: note.o ?? note.m,
     originalName: midiToName(note.o ?? note.m),
     wasConverted: Boolean(note.c),
-    wasMapped: Boolean(note.p),
-    sourceKind: note.k ?? "multiplayer",
-    sourceLabel: note.l ?? "Shared song",
     sourceTime: note.t,
     sourceDuration: note.d,
     velocity: note.v,
@@ -1180,8 +865,6 @@ function applyMultiplayerPlan(message) {
   elements.startOffset.value = message.settings?.startOffset ?? elements.startOffset.value;
   elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
   elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
-  elements.includePercussion.checked = message.settings?.includePercussion ?? elements.includePercussion.checked;
-  elements.includeOtherInstruments.checked = message.settings?.includeOtherInstruments ?? elements.includeOtherInstruments.checked;
   elements.builderPart.value = message.settings?.builderPart ?? elements.builderPart.value;
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
@@ -1252,10 +935,6 @@ function syncMultiplayerSong() {
     showToast("Connect multiplayer first.");
     return;
   }
-  if (isMp3Source()) {
-    showToast("MP3 plans do not sync in multiplayer. Use MIDI or split the build manually.");
-    return;
-  }
   if (!sendCurrentPlanToPeer()) {
     showToast("Load a MIDI before syncing.");
     return;
@@ -1304,7 +983,8 @@ function applyBuildStatus(message) {
 
 async function handleMidi(file) {
   if (!file) return;
-  if (!/\.midi?$/i.test(file.name)) {
+  const fileName = file.name.toLowerCase();
+  if (!/\.midi?$/.test(fileName) && !file.type.includes("midi")) {
     showToast("Please choose a .mid or .midi file.");
     return;
   }
@@ -1324,54 +1004,21 @@ async function handleMidi(file) {
   try {
     const buffer = await file.arrayBuffer();
     const midi = new Midi(buffer);
-    const includePercussion = elements.includePercussion.checked;
-    const includeOtherInstruments = elements.includeOtherInstruments.checked;
-    const skipped = {
-      percussion: 0,
-      other: 0,
-    };
-    let mappedPercussionNotes = 0;
+    let skippedPercussionNotes = 0;
+    const allNotes = [];
 
-    const allNotes = midi.tracks.flatMap((track, trackIndex) => {
-      const meta = getTrackMeta(track, trackIndex);
-      if (meta.isPercussion && !includePercussion) {
-        skipped.percussion += track.notes.length;
-        return [];
-      }
-      if (!meta.isPercussion && !meta.isPianoLike && !includeOtherInstruments) {
-        skipped.other += track.notes.length;
-        return [];
+    for (const track of midi.tracks) {
+      if (isPercussionTrack(track)) {
+        skippedPercussionNotes += track.notes.length;
+        continue;
       }
 
-      return track.notes.map((note) => {
-        if (meta.isPercussion) {
-          const mapped = mapPercussionNote(note.midi);
-          mappedPercussionNotes += 1;
-          return {
-            midi: mapped.midi,
-            originalMidi: note.midi,
-            originalName: mapped.label,
-            wasConverted: false,
-            wasMapped: true,
-            sourceKind: "percussion",
-            sourceLabel: mapped.label,
-            sourceTime: note.time,
-            sourceDuration: note.duration,
-            velocity: Math.min(1, Math.max(0.05, note.velocity ?? 0.8)),
-          };
-        }
-
-        return createMelodicNote(note, {
-          kind: meta.isPianoLike ? "piano" : "instrument",
-          label: meta.isPianoLike ? "Piano / keys" : meta.label,
-        });
-      });
-    });
+      track.notes.forEach((note) => allNotes.push(createMidiNote(note)));
+    }
 
     if (!allNotes.length) {
-      const skippedTotal = skipped.percussion + skipped.other;
-      if (skippedTotal) {
-        throw new Error("No notes matched the current MIDI filters. Turn on drums/percussion or other instruments and try again.");
+      if (skippedPercussionNotes) {
+        throw new Error("This MIDI only has drum notes. BABFT Music Notes need pitched notes.");
       }
       throw new Error("This MIDI does not contain any notes.");
     }
@@ -1381,11 +1028,7 @@ async function handleMidi(file) {
     state.convertedNotes = allNotes.filter((note) => note.wasConverted).length;
     state.sourceType = "midi";
     state.analysisMeta = {
-      skippedPercussionNotes: skipped.percussion,
-      skippedOtherInstrumentNotes: skipped.other,
-      mappedPercussionNotes,
-      includePercussion,
-      includeOtherInstruments,
+      skippedPercussionNotes,
     };
     elements.fileName.textContent = file.name;
     elements.fileMeta.textContent = `${formatFileSize(file.size)} · ${allNotes.length.toLocaleString()} notes ready · local only`;
@@ -1401,166 +1044,17 @@ async function handleMidi(file) {
   }
 }
 
-function getMp3ServerUrl() {
-  return elements.mp3ServerUrl.value.trim().replace(/\/+$/, "");
-}
-
-function normalizeServerNotes(payload) {
-  const serverNotes = Array.isArray(payload?.notes) ? payload.notes : [];
-  return serverNotes
-    .map((note) => createMelodicNote({
-      midi: note.midi,
-      time: note.start ?? note.time ?? note.sourceTime,
-      duration: note.duration ?? Math.max(0.05, Number(note.end ?? 0) - Number(note.start ?? 0)),
-      velocity: note.velocity ?? note.amplitude ?? 0.8,
-    }, {
-      kind: "mp3-server",
-      label: "MP3 API",
-    }))
-    .filter((note) => Number.isFinite(note.midi) && Number.isFinite(note.sourceTime))
-    .sort((a, b) => a.sourceTime - b.sourceTime || a.midi - b.midi);
-}
-
-async function transcribeMp3WithServer(file) {
-  const serverUrl = getMp3ServerUrl();
-  if (!serverUrl) {
-    throw new Error("Enter your MP3 API URL first.");
-  }
-
-  window.localStorage.setItem(MP3_SERVER_URL_KEY, serverUrl);
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(`${serverUrl}/transcribe`, {
-    method: "POST",
-    body: formData,
-  });
-
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    // Some server/proxy errors return plain text.
-  }
-
-  if (response.status === 429) {
-    throw new Error(payload?.detail || "The MP3 API is rate limited. Wait a bit and try again.");
-  }
-  if (!response.ok) {
-    throw new Error(payload?.detail || "The MP3 API could not transcribe this file.");
-  }
-
-  const notes = normalizeServerNotes(payload);
-  if (!notes.length) {
-    throw new Error("The MP3 API did not return any notes.");
-  }
-
-  return {
-    notes,
-    meta: payload.meta ?? {},
-  };
-}
-
-async function handleMp3(file) {
-  if (!file) return;
-  if (file.size > MAX_MP3_SIZE) {
-    showToast("That MP3 is over 5 MB. Choose a smaller file to protect bandwidth.");
-    return;
-  }
-
-  stopPreview();
-  state.localBuildDone = false;
-  state.remoteBuildDone = false;
-  state.remoteBuildPart = null;
-  updateBuildProgress();
-
-  if (elements.selfHostedMp3.checked) {
-    showLoading("Sending MP3 to your MP3 API…", "This goes to the URL you entered, not Vercel.");
-    try {
-      const { notes, meta } = await transcribeMp3WithServer(file);
-      state.file = file;
-      state.rawNotes = notes;
-      state.convertedNotes = notes.filter((note) => note.wasConverted).length;
-      state.sourceType = "mp3-server";
-      state.analysisMeta = {
-        ...meta,
-        selfHosted: true,
-        serverUrl: getMp3ServerUrl(),
-      };
-      elements.fileName.textContent = file.name;
-      elements.fileMeta.textContent = `${formatFileSize(file.size)} · MP3 API · ${notes.length.toLocaleString()} notes detected`;
-      elements.fileCard.classList.remove("hidden");
-      elements.dropZone.classList.add("hidden");
-      renderPlan();
-      showToast("MP3 API transcription finished.");
-    } catch (error) {
-      console.error(error);
-      showToast(error.message || "The MP3 API could not transcribe this file.");
-    } finally {
-      hideLoading();
-    }
-    return;
-  }
-
-  showLoading("Analyzing MP3 (experimental)…", "Decoding audio locally. Nothing is uploaded.");
-  await sleep(80);
-
-  let decodeContext = null;
-  try {
-    const buffer = await file.arrayBuffer();
-    decodeContext = new AudioContext();
-    const audioBuffer = await decodeContext.decodeAudioData(buffer.slice(0));
-    const analyzedDuration = Math.min(audioBuffer.duration, MP3_ANALYSIS_MAX_SECONDS);
-    let notes = await extractMp3Notes(audioBuffer, analyzedDuration);
-    const notesCapped = notes.length > MP3_MAX_EXTRACTED_NOTES;
-    if (notesCapped) notes = notes.slice(0, MP3_MAX_EXTRACTED_NOTES);
-
-    if (!notes.length) {
-      throw new Error("No stable notes were detected. Try a clearer melody, louder audio, or a MIDI file.");
-    }
-
-    state.file = file;
-    state.rawNotes = notes;
-    state.convertedNotes = notes.filter((note) => note.wasConverted).length;
-    state.sourceType = "mp3";
-    state.analysisMeta = {
-      capped: audioBuffer.duration > MP3_ANALYSIS_MAX_SECONDS,
-      analyzedDuration,
-      originalDuration: audioBuffer.duration,
-      notesCapped,
-    };
-    elements.fileName.textContent = file.name;
-    elements.fileMeta.textContent = `${formatFileSize(file.size)} · MP3 experimental · ${notes.length.toLocaleString()} notes detected`;
-    elements.fileCard.classList.remove("hidden");
-    elements.dropZone.classList.add("hidden");
-    renderPlan();
-    showToast("Experimental MP3 analysis finished locally.");
-  } catch (error) {
-    console.error(error);
-    showToast(error.message || "That MP3 could not be analyzed.");
-  } finally {
-    if (decodeContext) decodeContext.close().catch(() => {});
-    hideLoading();
-  }
-}
-
 function handleFile(file) {
   if (!file) return;
   const fileName = file.name.toLowerCase();
-  const isMp3 = fileName.endsWith(".mp3") || file.type === "audio/mpeg";
   const isMidi = /\.midi?$/.test(fileName) || file.type.includes("midi");
-
-  if (isMp3) {
-    handleMp3(file);
-    return;
-  }
 
   if (isMidi) {
     handleMidi(file);
     return;
   }
 
-  showToast("Please choose a .mid, .midi, or experimental .mp3 file.");
+  showToast("Please choose a .mid or .midi file.");
 }
 
 function removeMidi() {
@@ -1673,13 +1167,9 @@ async function previewPlan({ broadcast = true, delayMs = 0 } = {}) {
   try {
     const synth = await ensureSynth();
     if (broadcast && state.dataChannel?.readyState === "open") {
-      if (isMp3Source()) {
-        showToast("MP3 preview is local only. Multiplayer preview sync works with MIDI plans.");
-      } else {
-        sendCurrentPlanToPeer();
-        sendMultiplayerMessage({ type: "play", delayMs: 500 });
-        await sleep(500);
-      }
+      sendCurrentPlanToPeer();
+      sendMultiplayerMessage({ type: "play", delayMs: 500 });
+      await sleep(500);
     } else if (delayMs > 0) {
       await sleep(delayMs);
     }
@@ -1800,24 +1290,6 @@ function rerenderFromSettings() {
   if (state.rawNotes.length) renderPlan();
 }
 
-function updateMp3ServerUi() {
-  elements.mp3ServerUrl.disabled = !elements.selfHostedMp3.checked;
-}
-
-function saveMp3ServerUrl() {
-  const serverUrl = getMp3ServerUrl();
-  if (serverUrl) window.localStorage.setItem(MP3_SERVER_URL_KEY, serverUrl);
-}
-
-function reprocessMidiFilters() {
-  if (state.file && state.sourceType === "midi") {
-    handleMidi(state.file);
-    return;
-  }
-  if (!state.file) return;
-  showToast("Instrument filters apply when importing MIDI files.");
-}
-
 function handleBuilderPartChange() {
   stopPreview();
   if (state.plan) {
@@ -1861,10 +1333,6 @@ elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
-elements.includePercussion.addEventListener("change", reprocessMidiFilters);
-elements.includeOtherInstruments.addEventListener("change", reprocessMidiFilters);
-elements.selfHostedMp3.addEventListener("change", updateMp3ServerUi);
-elements.mp3ServerUrl.addEventListener("input", saveMp3ServerUrl);
 elements.builderPart.addEventListener("change", handleBuilderPartChange);
 elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
 elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
@@ -1896,8 +1364,6 @@ window.addEventListener("beforeunload", stopPreview);
 
 renderKeyboard();
 setupScrollReveal();
-elements.mp3ServerUrl.value = window.localStorage.getItem(MP3_SERVER_URL_KEY) || elements.mp3ServerUrl.value;
-updateMp3ServerUi();
 updateBuildProgress();
 updateBuilderPartHint();
 updatePreviewVolume();

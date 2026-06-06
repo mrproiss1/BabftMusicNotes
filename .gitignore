@@ -1,6 +1,5 @@
 node_modules/
 dist/
 .vercel/
-server/basic-pitch-api/.venv/
 __pycache__/
 *.pyc
