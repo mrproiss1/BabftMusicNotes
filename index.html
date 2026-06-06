@@ -28,7 +28,7 @@
         <a href="#guide">How it works</a>
         <a href="#notes">Notes</a>
       </nav>
-      <span class="privacy-pill"><i></i> 100% local</span>
+      <span class="privacy-pill"><i></i> Local by default</span>
     </header>
 
     <main>
@@ -49,7 +49,7 @@
             <span class="shield" aria-hidden="true">✓</span>
             <p>
               <strong>Your MIDI never leaves your device.</strong>
-              It is read in this browser tab only. No upload, account, or server storage.
+              MP3 can stay local too, or you can use a cloud MP3 API for stronger transcription.
             </p>
           </div>
         </div>
@@ -87,17 +87,58 @@
               <span class="step-number">01</span>
               <div>
                 <h3>Choose MIDI or MP3</h3>
-                <p>Processed locally in your browser</p>
+                <p>Local by default, cloud API optional</p>
               </div>
             </div>
+
+            <div class="control-sections">
+              <details class="control-section" open>
+                <summary>
+                  <span>File</span>
+                  <small>MIDI local, MP3 max 5 MB</small>
+                </summary>
 
             <label class="drop-zone" id="dropZone" for="midiFile">
               <input id="midiFile" type="file" accept=".mid,.midi,.mp3,audio/midi,audio/x-midi,audio/mpeg" />
               <span class="upload-icon" aria-hidden="true">↥</span>
               <strong>Drop MIDI or MP3 here</strong>
               <span>or click to browse</span>
-              <small>.mid, .midi, or .mp3 · MP3 experimental · never uploaded</small>
+              <small>.mid, .midi, or .mp3 - MP3 max 5 MB</small>
             </label>
+
+              </details>
+
+              <details class="control-section">
+                <summary>
+                  <span>MP3 API</span>
+                  <small>Cloud, optional</small>
+                </summary>
+
+            <div class="server-card">
+              <div class="server-heading">
+                <div>
+                  <strong>Cloud MP3 converter</strong>
+                  <small>Optional Basic Pitch API for better MP3-to-MIDI.</small>
+                </div>
+                <span>Experimental</span>
+              </div>
+
+              <label class="toggle-row">
+                <span>
+                  <strong>Use MP3 API</strong>
+                  <small>Sends MP3 only to your API server, not Vercel. Disabled by default.</small>
+                </span>
+                <input id="selfHostedMp3" type="checkbox" />
+                <i aria-hidden="true"></i>
+              </label>
+
+              <label class="url-setting" for="mp3ServerUrl">
+                <span>API URL</span>
+                <input id="mp3ServerUrl" type="url" value="" placeholder="https://your-mp3-api.example.com" spellcheck="false" disabled />
+                <small>The backend deletes temp files, caps uploads at 5 MB, and can stop when the weekly budget is reached.</small>
+              </label>
+            </div>
+              </details>
 
             <div class="file-card hidden" id="fileCard">
               <span class="file-icon">♪</span>
@@ -107,6 +148,12 @@
               </div>
               <button id="removeFile" type="button" aria-label="Remove MIDI">×</button>
             </div>
+
+              <details class="control-section" open>
+                <summary>
+                  <span>MIDI controls</span>
+                  <small>Timing, preview, instruments</small>
+                </summary>
 
             <div class="settings">
               <div class="setting">
@@ -147,6 +194,24 @@
 
               <label class="toggle-row">
                 <span>
+                  <strong>Include drums/percussion</strong>
+                  <small>Add MIDI kicks, snares, claps, hats, and cymbals as mapped BABFT notes.</small>
+                </span>
+                <input id="includePercussion" type="checkbox" />
+                <i aria-hidden="true"></i>
+              </label>
+
+              <label class="toggle-row">
+                <span>
+                  <strong>Include other instruments</strong>
+                  <small>Add guitar, strings, brass, and other non-piano MIDI tracks. Disabled by default.</small>
+                </span>
+                <input id="includeOtherInstruments" type="checkbox" />
+                <i aria-hidden="true"></i>
+              </label>
+
+              <label class="toggle-row">
+                <span>
                   <strong>Auto-follow preview</strong>
                   <small>Keeps the active green timeline step in view.</small>
                 </span>
@@ -154,26 +219,49 @@
                 <i aria-hidden="true"></i>
               </label>
 
+              <div class="split-card">
+                <div>
+                  <strong>Builder section</strong>
+                  <small>Use this even without multiplayer. Pick a half, copy the steps, and let your friend build the other half.</small>
+                </div>
+                <select id="builderPart" aria-label="Builder section">
+                  <option value="all">Show full build</option>
+                  <option value="first">Builder A: first half</option>
+                  <option value="second">Builder B: second half</option>
+                </select>
+                <p id="builderPartHint">Load a song to split the build into two parts.</p>
+              </div>
+
               <div class="multiplayer-card">
                 <div class="multiplayer-heading">
                   <div>
                     <strong>Multiplayer LAN</strong>
-                    <small>Same WiFi or Radmin VPN. No file uploads.</small>
+                    <small>Same WiFi or Radmin VPN. MIDI plans only; MP3 plans do not sync.</small>
                   </div>
                   <span id="multiplayerStatus"><i></i> Offline</span>
                 </div>
                 <p>
-                  Share the converted plan and sync Preview with one friend using manual WebRTC codes.
+                  Share MIDI build plans, sync Preview, and tell your friend when your part is finished.
                 </p>
                 <textarea id="multiplayerCode" spellcheck="false" placeholder="Invite or answer code appears here. Paste your friend's code here too."></textarea>
                 <div class="multiplayer-actions">
                   <button id="hostRoom" type="button">Host invite</button>
                   <button id="joinRoom" type="button">Join invite</button>
                   <button id="connectAnswer" type="button">Use answer</button>
-                  <button id="syncMultiplayer" type="button">Sync song</button>
+                  <button id="syncMultiplayer" type="button">Sync MIDI</button>
+                </div>
+                <div class="build-progress">
+                  <span class="progress-pill" id="myBuildStatus">You: not done</span>
+                  <span class="progress-pill" id="friendBuildStatus">Friend: not done</span>
+                </div>
+                <div class="multiplayer-actions progress-actions">
+                  <button class="done-button" id="markBuildDone" type="button">Mark my part done</button>
+                  <button id="resetBuildDone" type="button">Reset done</button>
                 </div>
                 <small id="multiplayerHelp">Host makes an invite. Friend joins and sends back the answer. Host pastes the answer.</small>
               </div>
+            </div>
+              </details>
             </div>
           </aside>
 
@@ -222,7 +310,7 @@
                 <div class="timeline-header">
                   <div>
                     <h3>Signal timeline</h3>
-                    <p>Each row is one activation in your chain.</p>
+                    <p>Each row is one activation in your chain. Large songs show every activation.</p>
                   </div>
                   <div class="legend"><i></i> Delay <i></i> Music Note</div>
                 </div>
@@ -278,7 +366,7 @@
                 </div>
                 <div class="note-table-wrap">
                   <table>
-                    <thead><tr><th>#</th><th>Start</th><th>Key</th><th>Property clicks</th><th>Duration</th></tr></thead>
+                    <thead><tr><th>#</th><th>Start</th><th>Key</th><th>Source</th><th>Property clicks</th><th>Duration</th></tr></thead>
                     <tbody id="noteTableBody"></tbody>
                   </table>
                 </div>
@@ -349,7 +437,7 @@
     <footer>
       <a class="brand" href="#"><span class="brand-mark"><span></span><span></span><span></span></span><span>BABFT <strong>Music Notes</strong></span></a>
       <p>Made for builders who would rather spend time making music.</p>
-      <span class="privacy-pill"><i></i> Files stay local</span>
+      <span class="privacy-pill"><i></i> Files stay local unless you choose MP3 API</span>
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
