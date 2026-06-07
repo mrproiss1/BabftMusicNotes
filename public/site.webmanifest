@@ -4,8 +4,8 @@
   "description": "Turn MIDI files into BABFT Music Note and Delay Block build plans.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080b16",
-  "theme_color": "#080b16",
+  "background_color": "#2d8fc7",
+  "theme_color": "#2d8fc7",
   "icons": [
     {
       "src": "/icon.svg",
