@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,10 +7,9 @@
       name="description"
       content="Turn MIDI files into clear Music Note and Delay Block instructions for Build A Boat For Treasure."
     />
-    <meta name="theme-color" content="#2d8fc7" />
-    <link rel="icon" href="/music-note.webp" type="image/webp" />
-    <link rel="alternate icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
+    <meta name="theme-color" content="#080b16" />
+    <link rel="icon" href="/assets/music-note.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/assets/music-note.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <title>BABFT Music Notes</title>
   </head>
@@ -20,7 +19,7 @@
     <header class="site-header">
       <a class="brand" href="#" aria-label="BABFT Music Notes home">
         <span class="brand-mark" aria-hidden="true">
-          <img src="/music-note.webp" alt="" />
+          <img src="/assets/music-note.png" alt="" />
         </span>
         <span>BABFT <strong>Music Notes</strong></span>
       </a>
@@ -35,8 +34,8 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <span class="eyebrow">BABFT block-by-block blueprint</span>
-          <h1>Turn a song into a <em>Build A Boat</em> music build.</h1>
+          <span class="eyebrow">MIDI to block-by-block blueprint</span>
+          <h1>Turn a song into a <em>BABFT</em> music build.</h1>
           <p>
             Drop in a MIDI file and get the exact Music Notes, Delay settings, and
             wiring order you need. Preview it with the real BABFT SoundFont before
@@ -61,7 +60,7 @@
           <div class="note-block">
             <div class="block-top"></div>
             <div class="block-face">
-              <img class="babft-note-img" src="/music-note.webp" alt="BABFT Music Note block" />
+              <img class="babft-note-img" src="/assets/music-note.png" alt="BABFT Music Note block" />
               <small>F#3</small>
             </div>
           </div>
@@ -110,7 +109,7 @@
               </details>
 
             <div class="file-card hidden" id="fileCard">
-              <span class="file-icon"><img src="/music-note.webp" alt="" /></span>
+              <span class="file-icon"><img src="/assets/music-note.png" alt="" /></span>
               <div>
                 <strong id="fileName">song.mid</strong>
                 <span id="fileMeta">0 KB</span>
@@ -244,7 +243,7 @@
 
             <div class="empty-state" id="emptyState">
               <div class="empty-graphic">
-                <img src="/music-note.webp" alt="" />
+                <img src="/assets/music-note.png" alt="" />
                 <i></i><i></i><i></i><i></i>
               </div>
               <h3>Your build plan will appear here</h3>
@@ -291,7 +290,7 @@
                     <div class="roll-lanes" id="rollLanes"></div>
                     <div class="roll-notes" id="rollNotes"></div>
                     <div class="roll-idle" id="rollIdle">
-                      <img src="/music-note.webp" alt="" />
+                      <img src="/assets/music-note.png" alt="" />
                       <strong>Press Preview to start the piano roll</strong>
                     </div>
                     <div class="roll-hit-line"></div>
@@ -358,14 +357,14 @@
           </article>
           <article>
             <span class="guide-index">2</span>
-            <div class="guide-icon delay-icon"><i></i></div>
+            <div class="guide-icon delay-icon"><img src="/assets/delay-block.png" alt="" /></div>
             <h3>Set each Delay</h3>
             <p>Use the Property Tool to enter each shown hold time, then bind every Delay to the next Delay in its chain.</p>
             <small>Long waits are split into several Delays, with a maximum of 10 seconds each.</small>
           </article>
           <article>
             <span class="guide-index">3</span>
-            <div class="guide-icon music-icon"><img src="/music-note.webp" alt="" /></div>
+            <div class="guide-icon music-icon"><img src="/assets/music-note.png" alt="" /></div>
             <h3>Set Music Note keys</h3>
             <p>Configure every Music Note block, then bind each Delay to its note outputs.</p>
             <small>Chords use several Music Notes bound to the same Delay.</small>
@@ -389,6 +388,9 @@
           </div>
         </div>
         <div class="keyboard-card">
+          <div class="note-colors-card">
+            <img src="/assets/all-note-colors.png" alt="BABFT Music Note blocks in every note color" />
+          </div>
           <div class="keyboard-heading"><span>Property Tool key order</span><small>Click a key to hear it</small></div>
           <div class="keyboard" id="keyboard"></div>
         </div>
@@ -396,7 +398,7 @@
     </main>
 
     <footer>
-      <a class="brand" href="#"><span class="brand-mark"><img src="/music-note.webp" alt="" /></span><span>BABFT <strong>Music Notes</strong></span></a>
+      <a class="brand" href="#"><span class="brand-mark"><img src="/assets/music-note.png" alt="" /></span><span>BABFT <strong>Music Notes</strong></span></a>
       <p>Made for builders who would rather spend time making music.</p>
       <span class="privacy-pill"><i></i> Files stay local</span>
     </footer>
