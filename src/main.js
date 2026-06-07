@@ -25,6 +25,8 @@ const elements = {
   tempoScaleOutput: document.querySelector("#tempoScaleOutput"),
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
+  reuseNotes: document.querySelector("#reuseNotes"),
+  blockSaveSummary: document.querySelector("#blockSaveSummary"),
   mergeNotes: document.querySelector("#mergeNotes"),
   autoFollow: document.querySelector("#autoFollow"),
   builderPart: document.querySelector("#builderPart"),
@@ -121,12 +123,12 @@ function isPercussionTrack(track) {
   );
 }
 
-function keyLabelForNote(note) {
-  return note.wasConverted ? `${note.name} (from ${note.originalName})` : note.name;
-}
-
 function compactNoteLabel(note) {
   return note.name;
+}
+
+function noteBlockLabel(note) {
+  return `Music Note ${note.id} (${compactNoteLabel(note)})`;
 }
 
 function createMidiNote(note) {
@@ -226,6 +228,7 @@ function createPlan() {
   const speed = Number(elements.tempoScale.value) / 100;
   const mergeWindow = elements.mergeNotes.checked ? 0.025 : 0.001;
   const startOffset = Number(elements.startOffset.value);
+  const saveBlocks = elements.reuseNotes?.checked ?? true;
   const scaledNotes = state.rawNotes
     .map((note) => ({ ...note, time: note.sourceTime / speed }))
     .sort((a, b) => a.time - b.time || a.midi - b.midi);
@@ -247,7 +250,16 @@ function createPlan() {
   let plannedTime = 0;
   let nextDelayId = 1;
   let nextMusicBlockId = 1;
+  const reusedNoteIds = new Map();
   let adjustedGaps = 0;
+  const getMusicBlockId = (midi) => {
+    if (!saveBlocks) return nextMusicBlockId++;
+    if (!reusedNoteIds.has(midi)) {
+      reusedNoteIds.set(midi, nextMusicBlockId);
+      nextMusicBlockId += 1;
+    }
+    return reusedNoteIds.get(midi);
+  };
 
   const events = grouped.map((group, eventIndex) => {
     const requestedDelay =
@@ -269,7 +281,7 @@ function createPlan() {
       .sort((a, b) => a.midi - b.midi)
       .map((note) => ({
         ...note,
-        id: nextMusicBlockId++,
+        id: getMusicBlockId(note.midi),
         name: midiToName(note.midi),
         propertyClicks: note.midi - MIN_NOTE,
       }));
@@ -285,11 +297,17 @@ function createPlan() {
     };
   });
 
+  const noteCount = events.reduce((total, event) => total + event.notes.length, 0);
+  const noteBlockCount = saveBlocks ? reusedNoteIds.size : noteCount;
+
   return {
     events,
     speed,
+    saveBlocks,
     adjustedGaps,
-    noteCount: events.reduce((total, event) => total + event.notes.length, 0),
+    noteCount,
+    noteBlockCount,
+    savedNoteBlocks: Math.max(0, noteCount - noteBlockCount),
     delayCount: nextDelayId - 1,
     duration: plannedTime + NOTE_SUSTAIN,
   };
@@ -349,13 +367,33 @@ function updateBuilderPartHint() {
     `${slice.label}: activations ${firstEvent.id}-${lastEvent.id} of ${state.plan.events.length}.${extra}`;
 }
 
+function updateBlockSaveSummary() {
+  if (!elements.blockSaveSummary) return;
+  if (!state.plan?.events.length) {
+    elements.blockSaveSummary.textContent = elements.reuseNotes.checked
+      ? "Load a MIDI to see how many Music Note blocks you can save."
+      : "Shared note blocks are off. Every note activation will get its own Music Note block.";
+    return;
+  }
+
+  const { plan } = state;
+  if (!plan.saveBlocks) {
+    elements.blockSaveSummary.textContent =
+      `Reuse is off: ${plan.noteCount.toLocaleString()} Music Note blocks will be placed.`;
+    return;
+  }
+
+  elements.blockSaveSummary.textContent =
+    `${plan.noteBlockCount.toLocaleString()} Music Note block${plan.noteBlockCount === 1 ? "" : "s"} can play ${plan.noteCount.toLocaleString()} activation${plan.noteCount === 1 ? "" : "s"}. Saved ${plan.savedNoteBlocks.toLocaleString()} duplicate block${plan.savedNoteBlocks === 1 ? "" : "s"}.`;
+}
+
 function renderPlan() {
   state.plan = createPlan();
   if (!state.plan) return;
 
   const { plan } = state;
   elements.statNotes.textContent = plan.noteCount.toLocaleString();
-  elements.statBlocks.textContent = plan.noteCount.toLocaleString();
+  elements.statBlocks.textContent = plan.noteBlockCount.toLocaleString();
   elements.statDelays.textContent = plan.delayCount.toLocaleString();
   elements.statDuration.textContent = formatClock(plan.duration);
 
@@ -375,9 +413,15 @@ function renderPlan() {
       `${plan.adjustedGaps.toLocaleString()} gap${plan.adjustedGaps === 1 ? " was" : "s were"} shorter than 0.05s and adjusted to BABFT's minimum Delay.`,
     );
   }
+  if (plan.saveBlocks && plan.savedNoteBlocks) {
+    notices.push(
+      `Save blocks is on, so repeated pitches reuse existing Music Note blocks. Delay blocks stay in order because each Delay holds its signal before passing it on.`,
+    );
+  }
 
   elements.planNotice.textContent = notices.join(" ");
   elements.planNotice.classList.toggle("hidden", notices.length === 0);
+  updateBlockSaveSummary();
   renderTimeline();
   renderPianoRoll();
   renderInstructions();
@@ -422,7 +466,7 @@ function renderTimeline() {
     event.notes.forEach((note, index) => {
       const chip = document.createElement("span");
       chip.className = "timeline-note";
-      chip.innerHTML = `<i></i> Note ${note.id} · ${compactNoteLabel(note)}`;
+      chip.innerHTML = `<i></i> ${noteBlockLabel(note)}`;
       body.append(chip);
       if (index < event.notes.length - 1) {
         const plus = document.createElement("span");
@@ -532,6 +576,28 @@ function createConnectionChip(from, to, type = "delay") {
   return chip;
 }
 
+function collectMusicBlocks(events) {
+  const blocks = new Map();
+
+  for (const event of events) {
+    for (const note of event.notes) {
+      const existing = blocks.get(note.id) ?? {
+        id: note.id,
+        midi: note.midi,
+        name: note.name,
+        propertyClicks: note.propertyClicks,
+        starts: [],
+        uses: 0,
+      };
+      existing.starts.push(event.plannedTime);
+      existing.uses += 1;
+      blocks.set(note.id, existing);
+    }
+  }
+
+  return [...blocks.values()].sort((a, b) => a.id - b.id);
+}
+
 function renderInstructions() {
   const fragment = document.createDocumentFragment();
   const slice = getBuilderSlice();
@@ -564,9 +630,7 @@ function renderInstructions() {
       event.id === 1
         ? "Button / Seat"
         : `Delay ${state.plan.events[event.id - 2].delays.at(-1).id}`;
-    const noteLabels = event.notes
-      .map((note) => `Music Note ${note.id} (${compactNoteLabel(note)})`)
-      .join(", ");
+    const noteLabels = event.notes.map(noteBlockLabel).join(", ");
     const next = state.plan.events[event.id]?.delays[0]?.id;
     const finalDelay = event.delays.at(-1);
     const content = document.createElement("div");
@@ -579,7 +643,7 @@ function renderInstructions() {
       <div class="delay-time-list">
         ${event.delays.map((delay) => `<span><i></i>Delay ${delay.id}<b>${formatSeconds(delay.duration)}</b></span>`).join("")}
       </div>
-      <p>Set the Delay times above with the Property Tool. Bind each block using the connections below. The final Delay activates ${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
+      <p>Set the Delay times above with the Property Tool. Bind each block using the connections below. The final Delay activates ${state.plan.saveBlocks ? "existing " : ""}${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
     `;
 
     const icon = document.createElement("div");
@@ -597,7 +661,7 @@ function renderInstructions() {
     });
     event.notes.forEach((note) => {
       connections.append(
-        createConnectionChip(`Delay ${finalDelay.id}`, `Note ${note.id} (${compactNoteLabel(note)})`, "note"),
+        createConnectionChip(`Delay ${finalDelay.id}`, noteBlockLabel(note), "note"),
       );
     });
     if (next) {
@@ -616,18 +680,16 @@ function renderInstructions() {
 function renderNoteTable() {
   const fragment = document.createDocumentFragment();
 
-  for (const event of getBuilderSlice().events) {
-    for (const note of event.notes) {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${note.id}</td>
-        <td>${formatSeconds(event.plannedTime)}</td>
-        <td>${keyLabelForNote(note)}</td>
-        <td>${note.propertyClicks === 0 ? "Default F#3" : `+${note.propertyClicks} from F#3`}</td>
-        <td>~${NOTE_SUSTAIN.toFixed(2)}s</td>
-      `;
-      fragment.append(row);
-    }
+  for (const block of collectMusicBlocks(getBuilderSlice().events)) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${block.id}</td>
+      <td>${block.name}</td>
+      <td>${block.propertyClicks === 0 ? "Default F#3" : `+${block.propertyClicks} from F#3`}</td>
+      <td>${block.uses.toLocaleString()}x</td>
+      <td>${formatSeconds(block.starts[0])}</td>
+    `;
+    fragment.append(row);
   }
 
   elements.noteTableBody.replaceChildren(fragment);
@@ -637,8 +699,11 @@ function buildInstructionsText() {
   const slice = getBuilderSlice();
   const lines = [
     "BABFT MUSIC BUILD PLAN",
-    `Playable notes: ${state.plan.noteCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
+    `Playable activations: ${state.plan.noteCount} | Music Note blocks: ${state.plan.noteBlockCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
     `Section: ${slice.label}`,
+    state.plan.saveBlocks
+      ? "Save blocks: ON. Reuse the same Music Note block whenever the note name matches."
+      : "Save blocks: OFF. Place a separate Music Note block for every activation.",
     "",
   ];
 
@@ -653,14 +718,14 @@ function buildInstructionsText() {
   slice.events.forEach((event, index) => {
     const source =
       event.id === 1 ? "Button / Seat" : `Delay ${state.plan.events[event.id - 2].delays.at(-1).id}`;
-    const notes = event.notes.map((note) => `Music Note ${note.id} (${compactNoteLabel(note)})`).join(", ");
+    const notes = event.notes.map(noteBlockLabel).join(", ");
     const nextDelay = state.plan.events[event.id]?.delays[0]?.id;
     const finalDelay = event.delays.at(-1);
     const connections = [
       `${source} -> Delay ${event.delays[0].id}`,
       ...event.delays.slice(0, -1).map((delay, delayIndex) =>
         `Delay ${delay.id} -> Delay ${event.delays[delayIndex + 1].id}`),
-      ...event.notes.map((note) => `Delay ${finalDelay.id} -> Music Note ${note.id} (${compactNoteLabel(note)})`),
+      ...event.notes.map((note) => `Delay ${finalDelay.id} -> ${noteBlockLabel(note)}`),
       ...(nextDelay ? [`Delay ${finalDelay.id} -> Delay ${nextDelay}`] : []),
     ];
     lines.push(
@@ -673,13 +738,18 @@ function buildInstructionsText() {
 
 function buildNotesText() {
   const slice = getBuilderSlice();
-  const lines = ["BABFT MUSIC NOTE BLOCKS", `Section: ${slice.label}`, ""];
-  for (const event of slice.events) {
-    for (const note of event.notes) {
-      lines.push(
-        `Music Note ${note.id}: ${keyLabelForNote(note)} at ${formatSeconds(event.plannedTime)} (${note.propertyClicks === 0 ? "default F#3" : `increment ${note.propertyClicks}× from F#3`})`,
-      );
-    }
+  const lines = [
+    "BABFT MUSIC NOTE BLOCKS",
+    `Section: ${slice.label}`,
+    state.plan.saveBlocks
+      ? "Place each block once. Reuse it by binding every matching Delay output to it."
+      : "Reuse is off. This list follows the separate note blocks in the build steps.",
+    "",
+  ];
+  for (const block of collectMusicBlocks(slice.events)) {
+    lines.push(
+      `Music Note ${block.id}: ${block.name} (${block.propertyClicks === 0 ? "default F#3" : `increment ${block.propertyClicks}× from F#3`}) | Used ${block.uses}x | First play ${formatSeconds(block.starts[0])}`,
+    );
   }
   return lines.join("\n");
 }
@@ -827,6 +897,7 @@ function currentPlanPayload() {
       startOffset: elements.startOffset.value,
       tempoScale: elements.tempoScale.value,
       mergeNotes: elements.mergeNotes.checked,
+      reuseNotes: elements.reuseNotes.checked,
       builderPart: elements.builderPart.value,
     },
     notes: state.rawNotes.map((note) => ({
@@ -865,6 +936,7 @@ function applyMultiplayerPlan(message) {
   elements.startOffset.value = message.settings?.startOffset ?? elements.startOffset.value;
   elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
   elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
+  elements.reuseNotes.checked = message.settings?.reuseNotes ?? elements.reuseNotes.checked;
   elements.builderPart.value = message.settings?.builderPart ?? elements.builderPart.value;
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
@@ -1077,6 +1149,7 @@ function removeMidi() {
   elements.stopButton.disabled = true;
   updateBuildProgress();
   updateBuilderPartHint();
+  updateBlockSaveSummary();
   showToast("MIDI removed from browser memory.");
 }
 
@@ -1287,7 +1360,11 @@ function rerenderFromSettings() {
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
   stopPreview();
-  if (state.rawNotes.length) renderPlan();
+  if (state.rawNotes.length) {
+    renderPlan();
+  } else {
+    updateBlockSaveSummary();
+  }
 }
 
 function handleBuilderPartChange() {
@@ -1333,6 +1410,7 @@ elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
+elements.reuseNotes.addEventListener("change", rerenderFromSettings);
 elements.builderPart.addEventListener("change", handleBuilderPartChange);
 elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
 elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
@@ -1366,5 +1444,6 @@ renderKeyboard();
 setupScrollReveal();
 updateBuildProgress();
 updateBuilderPartHint();
+updateBlockSaveSummary();
 updatePreviewVolume();
 rerenderFromSettings();

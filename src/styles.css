@@ -754,6 +754,75 @@ h1 em {
   font-size: 19px;
 }
 
+.save-block-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(200, 255, 80, 0.28);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(200, 255, 80, 0.12), transparent 38%),
+    linear-gradient(145deg, rgba(200, 255, 80, 0.08), rgba(164, 90, 160, 0.08)),
+    rgba(255, 255, 255, 0.02);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.save-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.save-card-heading strong {
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
+}
+
+.save-badge {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border: 1px solid rgba(200, 255, 80, 0.3);
+  border-radius: 999px;
+  background: var(--lime);
+  color: #11170a;
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.save-block-card p,
+.save-warning {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.save-warning {
+  color: var(--muted);
+}
+
+.save-toggle {
+  margin: 0;
+  border-color: rgba(200, 255, 80, 0.24);
+  background: rgba(0, 0, 0, 0.13);
+}
+
+.save-summary {
+  padding: 9px 10px;
+  border: 1px solid rgba(200, 255, 80, 0.2);
+  border-radius: 11px;
+  background: rgba(200, 255, 80, 0.07);
+  color: #e4ffa9;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .control-sections {
   display: grid;
   gap: 10px;
