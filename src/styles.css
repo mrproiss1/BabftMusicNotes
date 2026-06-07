@@ -38,7 +38,7 @@ body {
   overflow-x: hidden;
   background:
     linear-gradient(180deg, rgba(8, 11, 22, 0.72), rgba(8, 11, 22, 0.95)),
-    url("/assets/wood-block.png") calc(100% + 85px) 142px / 360px auto no-repeat,
+    url("/assets/music-note.png") calc(100% + 42px) 132px / 290px auto no-repeat,
     url("/assets/timer-in-game.png") -72px 74% / 230px auto no-repeat,
     radial-gradient(circle at 80% 0%, rgba(105, 76, 236, 0.18), transparent 30%),
     radial-gradient(circle at 8% 26%, rgba(200, 255, 80, 0.07), transparent 26%),
@@ -333,14 +333,15 @@ h1 em {
   bottom: 2%;
   width: 210px;
   height: 255px;
-  border: 1px solid rgba(202, 144, 84, 0.28);
+  border: 1px solid rgba(255, 196, 246, 0.3);
   border-radius: 24px;
   background:
+    radial-gradient(circle at center, rgba(255, 213, 253, 0.18), transparent 58%),
     linear-gradient(180deg, rgba(8, 11, 22, 0.22), rgba(8, 11, 22, 0.78)),
-    url("/assets/wood-block.png") center / cover;
+    url("/assets/music-note.png") center / 72% auto no-repeat;
   box-shadow: 0 24px 55px rgba(0, 0, 0, 0.35);
   content: "";
-  opacity: 0.62;
+  opacity: 0.68;
   transform: rotate(5deg);
 }
 
