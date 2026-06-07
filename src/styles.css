@@ -102,7 +102,7 @@ footer {
   border-bottom: 1px solid var(--line);
   background:
     linear-gradient(90deg, rgba(8, 11, 22, 0.82), rgba(8, 11, 22, 0.34)),
-    url("/assets/smooth-wood.png") right center / 155px auto no-repeat;
+    url("/assets/wood-texture.webp") right center / 155px auto no-repeat;
 }
 
 .brand {
@@ -423,7 +423,7 @@ h1 em {
   border-radius: 36px;
   background:
     linear-gradient(145deg, rgba(52, 29, 19, 0.22), rgba(4, 3, 2, 0.74)),
-    url("/assets/smooth-wood.png") center / cover;
+    url("/assets/wood-texture.webp") center / cover;
   content: "";
 }
 
@@ -586,7 +586,7 @@ h1 em {
   border-radius: var(--radius-lg);
   background:
     linear-gradient(145deg, rgba(12, 16, 29, 0.92), rgba(12, 16, 29, 0.72)),
-    url("/assets/wood-block.png") center / cover;
+    url("/assets/wood-texture.webp") center / cover;
   box-shadow: var(--shadow);
 }
 
@@ -2060,7 +2060,7 @@ td:nth-child(3) {
   border-radius: var(--radius-md);
   background:
     linear-gradient(145deg, rgba(13, 17, 32, 0.94), rgba(13, 17, 32, 0.7)),
-    url("/assets/wood-block.png") center / cover;
+    url("/assets/wood-texture.webp") center / cover;
   transition: transform 180ms ease, border-color 180ms ease;
 }
 
@@ -2195,7 +2195,7 @@ td:nth-child(3) {
   border-radius: var(--radius-lg);
   background:
     linear-gradient(145deg, rgba(13, 17, 32, 0.92), rgba(13, 17, 32, 0.72)),
-    url("/assets/wood-block.png") center / cover;
+    url("/assets/wood-texture.webp") center / cover;
   box-shadow: var(--shadow);
 }
 
@@ -2281,7 +2281,7 @@ footer {
   border-top: 1px solid var(--line);
   background:
     linear-gradient(90deg, rgba(8, 11, 22, 0.86), rgba(8, 11, 22, 0.38)),
-    url("/assets/smooth-wood.png") right center / 135px auto no-repeat;
+    url("/assets/wood-texture.webp") right center / 135px auto no-repeat;
 }
 
 footer p {
