@@ -673,7 +673,7 @@ function renderInstructions() {
     const icon = document.createElement("div");
     icon.className = "instruction-icon";
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "DELAY";
+    icon.innerHTML = '<img src="/assets/delay-icon.webp" alt="" />';
 
     const connections = document.createElement("div");
     connections.className = "connection-list";

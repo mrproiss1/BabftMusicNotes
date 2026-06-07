@@ -1642,8 +1642,21 @@ input[type="range"] {
   background: var(--purple);
 }
 
+.timeline-delay i,
+.delay-time-list i {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 0;
+  background: url("/assets/delay-icon.webp") center / contain no-repeat;
+}
+
 .timeline-note i {
   background: var(--lime);
+}
+
+.timeline-event.playing .timeline-delay i {
+  background: url("/assets/delay-icon.webp") center / contain no-repeat;
 }
 
 .timeline-arrow {
@@ -1894,6 +1907,13 @@ input[type="range"] {
   font-size: 7px;
   font-weight: 900;
   letter-spacing: 0.08em;
+}
+
+.instruction-icon img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(255, 184, 249, 0.28));
 }
 
 .trigger-step .instruction-icon {
