@@ -2928,6 +2928,90 @@ footer p {
   box-shadow: 0 7px 0 #3b2415, 0 18px 40px rgba(4, 24, 40, 0.3);
 }
 
+.brand-mark::before,
+.brand-mark::after,
+.block-face span::before,
+.block-face span::after,
+.empty-graphic span::before,
+.roll-idle span::before,
+.music-icon::before,
+.file-icon::before {
+  display: none;
+}
+
+.brand-mark,
+.file-icon,
+.music-icon,
+.empty-graphic,
+.roll-idle {
+  overflow: visible;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+}
+
+.brand-mark img {
+  width: 160%;
+  max-width: none;
+  transform: translateX(9%) rotate(2deg);
+  filter: drop-shadow(0 3px 0 rgba(39, 22, 83, 0.55));
+}
+
+.block-face {
+  overflow: hidden;
+}
+
+.babft-note-img {
+  width: 185%;
+  max-width: none;
+  transform: translate(34%, 0) scaleX(-1);
+  filter: drop-shadow(0 6px 0 rgba(43, 24, 95, 0.45)) drop-shadow(0 0 16px rgba(216, 255, 87, 0.22));
+}
+
+.file-icon {
+  overflow: hidden;
+}
+
+.file-icon img {
+  width: 180%;
+  max-width: none;
+  transform: translateX(9%) scaleX(-1);
+  filter: drop-shadow(0 2px 0 rgba(43, 24, 95, 0.5));
+}
+
+.empty-graphic {
+  display: grid;
+  place-items: center;
+}
+
+.empty-graphic img {
+  width: 190%;
+  max-width: none;
+  transform: translateX(12%) rotate(3deg) scaleX(-1);
+  filter: drop-shadow(0 7px 0 rgba(43, 24, 95, 0.45));
+}
+
+.roll-idle img {
+  width: 132px;
+  max-width: 62%;
+  transform: scaleX(-1);
+  filter: drop-shadow(0 8px 0 rgba(43, 24, 95, 0.4));
+}
+
+.music-icon {
+  display: grid;
+  place-items: center;
+}
+
+.music-icon img {
+  width: 140%;
+  max-width: none;
+  transform: translateX(10%) scaleX(-1);
+  filter: drop-shadow(0 4px 0 rgba(43, 24, 95, 0.45));
+}
+
 .hidden {
   display: none !important;
 }

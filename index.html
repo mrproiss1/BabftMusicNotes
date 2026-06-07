@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,7 +8,8 @@
       content="Turn MIDI files into clear Music Note and Delay Block instructions for Build A Boat For Treasure."
     />
     <meta name="theme-color" content="#2d8fc7" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/music-note.webp" type="image/webp" />
+    <link rel="alternate icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/site.webmanifest" />
     <title>BABFT Music Notes</title>
@@ -19,7 +20,7 @@
     <header class="site-header">
       <a class="brand" href="#" aria-label="BABFT Music Notes home">
         <span class="brand-mark" aria-hidden="true">
-          <span></span><span></span><span></span>
+          <img src="/music-note.webp" alt="" />
         </span>
         <span>BABFT <strong>Music Notes</strong></span>
       </a>
@@ -60,7 +61,7 @@
           <div class="note-block">
             <div class="block-top"></div>
             <div class="block-face">
-              <span>♫</span>
+              <img class="babft-note-img" src="/music-note.webp" alt="BABFT Music Note block" />
               <small>F#3</small>
             </div>
           </div>
@@ -109,7 +110,7 @@
               </details>
 
             <div class="file-card hidden" id="fileCard">
-              <span class="file-icon">♪</span>
+              <span class="file-icon"><img src="/music-note.webp" alt="" /></span>
               <div>
                 <strong id="fileName">song.mid</strong>
                 <span id="fileMeta">0 KB</span>
@@ -243,7 +244,7 @@
 
             <div class="empty-state" id="emptyState">
               <div class="empty-graphic">
-                <span>♪</span>
+                <img src="/music-note.webp" alt="" />
                 <i></i><i></i><i></i><i></i>
               </div>
               <h3>Your build plan will appear here</h3>
@@ -290,7 +291,7 @@
                     <div class="roll-lanes" id="rollLanes"></div>
                     <div class="roll-notes" id="rollNotes"></div>
                     <div class="roll-idle" id="rollIdle">
-                      <span>♪</span>
+                      <img src="/music-note.webp" alt="" />
                       <strong>Press Preview to start the piano roll</strong>
                     </div>
                     <div class="roll-hit-line"></div>
@@ -364,7 +365,7 @@
           </article>
           <article>
             <span class="guide-index">3</span>
-            <div class="guide-icon music-icon">♫</div>
+            <div class="guide-icon music-icon"><img src="/music-note.webp" alt="" /></div>
             <h3>Set Music Note keys</h3>
             <p>Configure every Music Note block, then bind each Delay to its note outputs.</p>
             <small>Chords use several Music Notes bound to the same Delay.</small>
@@ -395,7 +396,7 @@
     </main>
 
     <footer>
-      <a class="brand" href="#"><span class="brand-mark"><span></span><span></span><span></span></span><span>BABFT <strong>Music Notes</strong></span></a>
+      <a class="brand" href="#"><span class="brand-mark"><img src="/music-note.webp" alt="" /></span><span>BABFT <strong>Music Notes</strong></span></a>
       <p>Made for builders who would rather spend time making music.</p>
       <span class="privacy-pill"><i></i> Files stay local</span>
     </footer>
