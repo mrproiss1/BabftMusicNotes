@@ -118,6 +118,21 @@
             </div>
 
             <div class="save-block-card">
+              <div class="server-mode-card">
+                <div class="save-card-heading">
+                  <span class="save-badge">Server mode</span>
+                  <strong>Pick your BABFT version</strong>
+                </div>
+                <select id="serverMode" aria-label="BABFT server mode">
+                  <option value="normal" selected>Normal servers</option>
+                  <option value="test">Test servers</option>
+                </select>
+                <p id="serverModeSummary">
+                  Normal servers use the stable Delay chain: Button or Seat to Delay,
+                  Delay to Delay, then final Delay to Music Notes.
+                </p>
+              </div>
+
               <div class="save-card-heading">
                 <span class="save-badge">Save blocks</span>
                 <strong>Reuse existing Music Notes</strong>
@@ -129,9 +144,9 @@
               <label class="toggle-row save-toggle">
                 <span>
                   <strong>Use shared note blocks</strong>
-                  <small>Example: all G4 activations use the same G4 Music Note.</small>
+                  <small>Off by default. Turn on only if you want repeated notes to share blocks.</small>
                 </span>
-                <input id="reuseNotes" type="checkbox" checked />
+                <input id="reuseNotes" type="checkbox" />
                 <i aria-hidden="true"></i>
               </label>
               <div class="save-summary" id="blockSaveSummary">
