@@ -1150,7 +1150,6 @@ function removeMidi() {
   elements.stopButton.disabled = true;
   updateBuildProgress();
   updateBuilderPartHint();
-  updateServerModeSummary();
   updateBlockSaveSummary();
   showToast("MIDI removed from browser memory.");
 }
@@ -1361,7 +1360,6 @@ function setupScrollReveal() {
 function rerenderFromSettings() {
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
-  updateServerModeSummary();
   stopPreview();
   if (state.rawNotes.length) {
     renderPlan();
@@ -1401,9 +1399,17 @@ function activateView(button) {
   }
 }
 
+function activateViewByName(viewName) {
+  const button = document.querySelector(`.view-tabs button[data-view="${viewName}"]`);
+  if (button) activateView(button);
+}
+
 elements.midiFile.addEventListener("change", (event) => handleFile(event.target.files[0]));
 elements.removeFile.addEventListener("click", removeMidi);
-elements.previewButton.addEventListener("click", previewPlan);
+elements.previewButton.addEventListener("click", () => {
+  if (!state.stopTimer) activateViewByName("piano");
+  previewPlan();
+});
 elements.stopButton.addEventListener("click", () => stopPreview({ broadcast: true }));
 elements.copyInstructions.addEventListener("click", () =>
   copyText(buildInstructionsText(), "Build steps copied."),
@@ -1447,7 +1453,6 @@ renderKeyboard();
 setupScrollReveal();
 updateBuildProgress();
 updateBuilderPartHint();
-updateServerModeSummary();
 updateBlockSaveSummary();
 updatePreviewVolume();
 rerenderFromSettings();
