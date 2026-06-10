@@ -25,8 +25,6 @@ const elements = {
   tempoScaleOutput: document.querySelector("#tempoScaleOutput"),
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
-  serverMode: document.querySelector("#serverMode"),
-  serverModeSummary: document.querySelector("#serverModeSummary"),
   reuseNotes: document.querySelector("#reuseNotes"),
   blockSaveSummary: document.querySelector("#blockSaveSummary"),
   mergeNotes: document.querySelector("#mergeNotes"),
@@ -133,10 +131,6 @@ function noteBlockLabel(note) {
   return `Music Note ${note.id} (${compactNoteLabel(note)})`;
 }
 
-function serverModeLabel() {
-  return elements.serverMode?.value === "test" ? "Test servers" : "Normal servers";
-}
-
 function createMidiNote(note) {
   const originalMidi = Math.round(Number(note.midi));
   const foldedMidi = foldIntoPlayableRange(originalMidi);
@@ -235,7 +229,6 @@ function createPlan() {
   const mergeWindow = elements.mergeNotes.checked ? 0.025 : 0.001;
   const startOffset = Number(elements.startOffset.value);
   const saveBlocks = elements.reuseNotes?.checked ?? false;
-  const serverMode = elements.serverMode?.value === "test" ? "test" : "normal";
   const scaledNotes = state.rawNotes
     .map((note) => ({ ...note, time: note.sourceTime / speed }))
     .sort((a, b) => a.time - b.time || a.midi - b.midi);
@@ -310,7 +303,6 @@ function createPlan() {
   return {
     events,
     speed,
-    serverMode,
     saveBlocks,
     adjustedGaps,
     noteCount,
@@ -375,14 +367,6 @@ function updateBuilderPartHint() {
     `${slice.label}: activations ${firstEvent.id}-${lastEvent.id} of ${state.plan.events.length}.${extra}`;
 }
 
-function updateServerModeSummary() {
-  if (!elements.serverModeSummary) return;
-  const testMode = elements.serverMode?.value === "test";
-  elements.serverModeSummary.textContent = testMode
-    ? "Test servers: use the newer test-server wiring UI, but keep this same order: trigger to Delay, Delay to Delay, final Delay to Music Notes."
-    : "Normal servers: use the stable Delay chain. Trigger to Delay, Delay to Delay for long waits, then final Delay to Music Notes.";
-}
-
 function updateBlockSaveSummary() {
   if (!elements.blockSaveSummary) return;
   if (!state.plan?.events.length) {
@@ -427,11 +411,6 @@ function renderPlan() {
   if (plan.adjustedGaps) {
     notices.push(
       `${plan.adjustedGaps.toLocaleString()} gap${plan.adjustedGaps === 1 ? " was" : "s were"} shorter than 0.05s and adjusted to BABFT's minimum Delay.`,
-    );
-  }
-  if (plan.serverMode === "test") {
-    notices.push(
-      "Test server mode is selected. Use the test-server wiring UI, but keep the same Delay-to-Delay chain order shown here.",
     );
   }
   if (plan.saveBlocks && plan.savedNoteBlocks) {
@@ -654,9 +633,6 @@ function renderInstructions() {
     const noteLabels = event.notes.map(noteBlockLabel).join(", ");
     const next = state.plan.events[event.id]?.delays[0]?.id;
     const finalDelay = event.delays.at(-1);
-    const modeNote = state.plan.serverMode === "test"
-      ? " In test servers, use the newer test-server wiring UI for the same connections."
-      : "";
     const content = document.createElement("div");
     content.className = "instruction-content";
     content.innerHTML = `
@@ -667,7 +643,7 @@ function renderInstructions() {
       <div class="delay-time-list">
         ${event.delays.map((delay) => `<span><i></i>Delay ${delay.id}<b>${formatSeconds(delay.duration)}</b></span>`).join("")}
       </div>
-      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${state.plan.saveBlocks ? "existing " : ""}${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.${modeNote}</p>
+      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${state.plan.saveBlocks ? "existing " : ""}${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
     `;
 
     const icon = document.createElement("div");
@@ -724,11 +700,8 @@ function buildInstructionsText() {
   const lines = [
     "BABFT MUSIC BUILD PLAN",
     `Playable activations: ${state.plan.noteCount} | Music Note blocks: ${state.plan.noteBlockCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
-    `Server mode: ${serverModeLabel()}`,
     `Section: ${slice.label}`,
-    state.plan.serverMode === "test"
-      ? "Test server wiring: use the newer test-server UI, but keep the exact trigger -> Delay -> Delay -> Music Note order."
-      : "Normal server wiring: Delay -> Delay chaining is supported and used for longer waits.",
+    "Wiring: Delay -> Delay chaining is supported and used for longer waits.",
     state.plan.saveBlocks
       ? "Save blocks: ON. Reuse the same Music Note block whenever the note name matches."
       : "Save blocks: OFF. Place a separate Music Note block for every activation.",
@@ -926,7 +899,6 @@ function currentPlanPayload() {
       tempoScale: elements.tempoScale.value,
       mergeNotes: elements.mergeNotes.checked,
       reuseNotes: elements.reuseNotes.checked,
-      serverMode: elements.serverMode.value,
       builderPart: elements.builderPart.value,
     },
     notes: state.rawNotes.map((note) => ({
@@ -966,7 +938,6 @@ function applyMultiplayerPlan(message) {
   elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
   elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
   elements.reuseNotes.checked = message.settings?.reuseNotes ?? elements.reuseNotes.checked;
-  elements.serverMode.value = message.settings?.serverMode ?? elements.serverMode.value;
   elements.builderPart.value = message.settings?.builderPart ?? elements.builderPart.value;
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
@@ -1443,7 +1414,6 @@ elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
 elements.reuseNotes.addEventListener("change", rerenderFromSettings);
-elements.serverMode.addEventListener("change", rerenderFromSettings);
 elements.builderPart.addEventListener("change", handleBuilderPartChange);
 elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
 elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
