@@ -117,31 +117,6 @@
               <button id="removeFile" type="button" aria-label="Remove MIDI">×</button>
             </div>
 
-            <div class="save-block-card">
-              <div class="save-card-heading">
-                <span class="save-badge">Save blocks</span>
-                <strong>Reuse existing Music Notes</strong>
-              </div>
-              <p>
-                Place one Music Note block for each BABFT note, then bind every Delay
-                that needs that pitch to the same block.
-              </p>
-              <label class="toggle-row save-toggle">
-                <span>
-                  <strong>Use shared note blocks</strong>
-                  <small>Off by default. Turn on only if you want repeated notes to share blocks.</small>
-                </span>
-                <input id="reuseNotes" type="checkbox" />
-                <i aria-hidden="true"></i>
-              </label>
-              <div class="save-summary" id="blockSaveSummary">
-                Load a MIDI to see how many Music Note blocks you can save.
-              </div>
-              <small class="save-warning">
-                Delay blocks still stay in the chain because a Delay cannot activate again while holding a signal.
-              </small>
-            </div>
-
               <details class="control-section">
                 <summary>
                   <span>Simple controls</span>

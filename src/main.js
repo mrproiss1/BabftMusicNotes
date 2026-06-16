@@ -25,8 +25,6 @@ const elements = {
   tempoScaleOutput: document.querySelector("#tempoScaleOutput"),
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
-  reuseNotes: document.querySelector("#reuseNotes"),
-  blockSaveSummary: document.querySelector("#blockSaveSummary"),
   mergeNotes: document.querySelector("#mergeNotes"),
   autoFollow: document.querySelector("#autoFollow"),
   builderPart: document.querySelector("#builderPart"),
@@ -228,7 +226,6 @@ function createPlan() {
   const speed = Number(elements.tempoScale.value) / 100;
   const mergeWindow = elements.mergeNotes.checked ? 0.025 : 0.001;
   const startOffset = Number(elements.startOffset.value);
-  const saveBlocks = elements.reuseNotes?.checked ?? false;
   const scaledNotes = state.rawNotes
     .map((note) => ({ ...note, time: note.sourceTime / speed }))
     .sort((a, b) => a.time - b.time || a.midi - b.midi);
@@ -250,16 +247,7 @@ function createPlan() {
   let plannedTime = 0;
   let nextDelayId = 1;
   let nextMusicBlockId = 1;
-  const reusedNoteIds = new Map();
   let adjustedGaps = 0;
-  const getMusicBlockId = (midi) => {
-    if (!saveBlocks) return nextMusicBlockId++;
-    if (!reusedNoteIds.has(midi)) {
-      reusedNoteIds.set(midi, nextMusicBlockId);
-      nextMusicBlockId += 1;
-    }
-    return reusedNoteIds.get(midi);
-  };
 
   const events = grouped.map((group, eventIndex) => {
     const requestedDelay =
@@ -281,7 +269,7 @@ function createPlan() {
       .sort((a, b) => a.midi - b.midi)
       .map((note) => ({
         ...note,
-        id: getMusicBlockId(note.midi),
+        id: nextMusicBlockId++,
         name: midiToName(note.midi),
         propertyClicks: note.midi - MIN_NOTE,
       }));
@@ -298,16 +286,13 @@ function createPlan() {
   });
 
   const noteCount = events.reduce((total, event) => total + event.notes.length, 0);
-  const noteBlockCount = saveBlocks ? reusedNoteIds.size : noteCount;
 
   return {
     events,
     speed,
-    saveBlocks,
     adjustedGaps,
     noteCount,
-    noteBlockCount,
-    savedNoteBlocks: Math.max(0, noteCount - noteBlockCount),
+    noteBlockCount: noteCount,
     delayCount: nextDelayId - 1,
     duration: plannedTime + NOTE_SUSTAIN,
   };
@@ -367,26 +352,6 @@ function updateBuilderPartHint() {
     `${slice.label}: activations ${firstEvent.id}-${lastEvent.id} of ${state.plan.events.length}.${extra}`;
 }
 
-function updateBlockSaveSummary() {
-  if (!elements.blockSaveSummary) return;
-  if (!state.plan?.events.length) {
-    elements.blockSaveSummary.textContent = elements.reuseNotes.checked
-      ? "Load a MIDI to see how many Music Note blocks you can save."
-      : "Shared note blocks are off. Every note activation will get its own Music Note block.";
-    return;
-  }
-
-  const { plan } = state;
-  if (!plan.saveBlocks) {
-    elements.blockSaveSummary.textContent =
-      `Reuse is off: ${plan.noteCount.toLocaleString()} Music Note blocks will be placed.`;
-    return;
-  }
-
-  elements.blockSaveSummary.textContent =
-    `${plan.noteBlockCount.toLocaleString()} Music Note block${plan.noteBlockCount === 1 ? "" : "s"} can play ${plan.noteCount.toLocaleString()} activation${plan.noteCount === 1 ? "" : "s"}. Saved ${plan.savedNoteBlocks.toLocaleString()} duplicate block${plan.savedNoteBlocks === 1 ? "" : "s"}.`;
-}
-
 function renderPlan() {
   state.plan = createPlan();
   if (!state.plan) return;
@@ -413,15 +378,8 @@ function renderPlan() {
       `${plan.adjustedGaps.toLocaleString()} gap${plan.adjustedGaps === 1 ? " was" : "s were"} shorter than 0.05s and adjusted to BABFT's minimum Delay.`,
     );
   }
-  if (plan.saveBlocks && plan.savedNoteBlocks) {
-    notices.push(
-      `Save blocks is on, so repeated pitches reuse existing Music Note blocks. Delay blocks stay in order because each Delay holds its signal before passing it on.`,
-    );
-  }
-
   elements.planNotice.textContent = notices.join(" ");
   elements.planNotice.classList.toggle("hidden", notices.length === 0);
-  updateBlockSaveSummary();
   renderTimeline();
   renderPianoRoll();
   renderInstructions();
@@ -643,7 +601,7 @@ function renderInstructions() {
       <div class="delay-time-list">
         ${event.delays.map((delay) => `<span><i></i>Delay ${delay.id}<b>${formatSeconds(delay.duration)}</b></span>`).join("")}
       </div>
-      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${state.plan.saveBlocks ? "existing " : ""}${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
+      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
     `;
 
     const icon = document.createElement("div");
@@ -702,9 +660,7 @@ function buildInstructionsText() {
     `Playable activations: ${state.plan.noteCount} | Music Note blocks: ${state.plan.noteBlockCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
     `Section: ${slice.label}`,
     "Wiring: Delay -> Delay chaining is supported and used for longer waits.",
-    state.plan.saveBlocks
-      ? "Save blocks: ON. Reuse the same Music Note block whenever the note name matches."
-      : "Save blocks: OFF. Place a separate Music Note block for every activation.",
+    "Music Notes: place a separate Music Note block for every activation.",
     "",
   ];
 
@@ -742,9 +698,7 @@ function buildNotesText() {
   const lines = [
     "BABFT MUSIC NOTE BLOCKS",
     `Section: ${slice.label}`,
-    state.plan.saveBlocks
-      ? "Place each block once. Reuse it by binding every matching Delay output to it."
-      : "Reuse is off. This list follows the separate note blocks in the build steps.",
+    "This list follows the separate Music Note blocks in the build steps.",
     "",
   ];
   for (const block of collectMusicBlocks(slice.events)) {
@@ -898,7 +852,6 @@ function currentPlanPayload() {
       startOffset: elements.startOffset.value,
       tempoScale: elements.tempoScale.value,
       mergeNotes: elements.mergeNotes.checked,
-      reuseNotes: elements.reuseNotes.checked,
       builderPart: elements.builderPart.value,
     },
     notes: state.rawNotes.map((note) => ({
@@ -937,7 +890,6 @@ function applyMultiplayerPlan(message) {
   elements.startOffset.value = message.settings?.startOffset ?? elements.startOffset.value;
   elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
   elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
-  elements.reuseNotes.checked = message.settings?.reuseNotes ?? elements.reuseNotes.checked;
   elements.builderPart.value = message.settings?.builderPart ?? elements.builderPart.value;
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
@@ -1150,7 +1102,6 @@ function removeMidi() {
   elements.stopButton.disabled = true;
   updateBuildProgress();
   updateBuilderPartHint();
-  updateBlockSaveSummary();
   showToast("MIDI removed from browser memory.");
 }
 
@@ -1363,8 +1314,6 @@ function rerenderFromSettings() {
   stopPreview();
   if (state.rawNotes.length) {
     renderPlan();
-  } else {
-    updateBlockSaveSummary();
   }
 }
 
@@ -1419,7 +1368,6 @@ elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
-elements.reuseNotes.addEventListener("change", rerenderFromSettings);
 elements.builderPart.addEventListener("change", handleBuilderPartChange);
 elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
 elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
@@ -1453,6 +1401,5 @@ renderKeyboard();
 setupScrollReveal();
 updateBuildProgress();
 updateBuilderPartHint();
-updateBlockSaveSummary();
 updatePreviewVolume();
 rerenderFromSettings();
