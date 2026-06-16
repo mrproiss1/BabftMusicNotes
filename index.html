@@ -173,6 +173,47 @@
 
               <details class="control-section">
                 <summary>
+                  <span>Advanced</span>
+                  <small>Save blocks</small>
+                </summary>
+
+                <div class="settings">
+                  <div class="advanced-save-card">
+                    <div class="advanced-save-heading">
+                      <span class="save-badge">Hard mode</span>
+                      <strong>Save Delay blocks and Music Notes</strong>
+                    </div>
+                    <p>
+                      These options make the build smaller, but the copied build notes become more advanced.
+                    </p>
+
+                    <label class="toggle-row save-toggle">
+                      <span>
+                        <strong>Save Delay blocks</strong>
+                        <small>Groups starts within 0.075s into one Delay chain. Smaller build, less exact rhythm.</small>
+                      </span>
+                      <input id="saveDelayBlocks" type="checkbox" />
+                      <i aria-hidden="true"></i>
+                    </label>
+
+                    <label class="toggle-row save-toggle">
+                      <span>
+                        <strong>Save Music Notes</strong>
+                        <small>Reuses one Music Note block for each pitch instead of placing duplicates.</small>
+                      </span>
+                      <input id="saveNoteBlocks" type="checkbox" />
+                      <i aria-hidden="true"></i>
+                    </label>
+
+                    <div class="save-summary" id="advancedSaveSummary">
+                      Load a MIDI to see how many blocks advanced mode can save.
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="control-section">
+                <summary>
                   <span>Optional teamwork</span>
                   <small>Split or LAN sync</small>
                 </summary>

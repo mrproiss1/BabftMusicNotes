@@ -822,6 +822,66 @@ h1 em {
   margin-top: 0;
 }
 
+.advanced-save-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(200, 255, 80, 0.24);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 94% 8%, rgba(200, 255, 80, 0.12), transparent 36%),
+    rgba(255, 255, 255, 0.018);
+}
+
+.advanced-save-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.advanced-save-heading strong {
+  color: var(--text);
+  font-size: 11px;
+  text-align: right;
+}
+
+.save-badge {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border: 1px solid rgba(200, 255, 80, 0.3);
+  border-radius: 999px;
+  background: var(--lime);
+  color: #11170a;
+  font-size: 7px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.advanced-save-card p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.save-toggle {
+  margin: 0;
+  border-color: rgba(200, 255, 80, 0.24);
+  background: rgba(0, 0, 0, 0.13);
+}
+
+.save-summary {
+  padding: 9px 10px;
+  border: 1px solid rgba(200, 255, 80, 0.2);
+  border-radius: 11px;
+  background: rgba(200, 255, 80, 0.07);
+  color: #e4ffa9;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .setting {
   padding: 12px;
   border: 1px solid var(--line);
@@ -1589,7 +1649,7 @@ input[type="range"] {
 }
 
 .piano-roll {
-  --roll-travel: 390px;
+  --roll-travel: 470px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1646,9 +1706,12 @@ input[type="range"] {
   box-shadow: 0 0 17px rgba(200, 255, 80, 0.42);
   font-size: 6px;
   font-weight: 900;
+  opacity: 1;
   animation-name: piano-fall;
+  animation-duration: var(--fall-duration, 3s);
   animation-timing-function: linear;
-  animation-fill-mode: both;
+  animation-fill-mode: forwards;
+  will-change: transform;
 }
 
 .roll-note.sharp {
@@ -1658,21 +1721,11 @@ input[type="range"] {
 
 @keyframes piano-fall {
   0% {
-    opacity: 0;
-    transform: translateY(0) scale(0.9);
-  }
-
-  4% {
-    opacity: 1;
-  }
-
-  94% {
-    opacity: 1;
+    transform: translateY(0);
   }
 
   100% {
-    opacity: 0;
-    transform: translateY(var(--roll-travel)) scale(1);
+    transform: translateY(var(--roll-travel));
   }
 }
 
@@ -2358,6 +2411,10 @@ footer p {
     opacity: 1;
     transform: none;
   }
+
+  .roll-note {
+    animation-duration: var(--fall-duration, 3s) !important;
+  }
 }
 
 @media (max-width: 1000px) {
@@ -2499,7 +2556,7 @@ footer p {
   }
 
   .piano-roll {
-    --roll-travel: 320px;
+    --roll-travel: 400px;
   }
 
   .roll-stage {

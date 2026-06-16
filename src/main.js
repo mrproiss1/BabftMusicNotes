@@ -8,6 +8,9 @@ const MIN_DELAY = 0.05;
 const MAX_DELAY = 10;
 const NOTE_SUSTAIN = 0.85;
 const PIANO_ROLL_LEAD_TIME = 3;
+const STRICT_MERGE_WINDOW = 0.001;
+const CHORD_MERGE_WINDOW = 0.025;
+const ADVANCED_DELAY_SAVE_WINDOW = 0.075;
 const MAX_MIDI_SIZE = 25 * 1024 * 1024;
 const MULTIPLAYER_CHUNK_SIZE = 12000;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -26,6 +29,9 @@ const elements = {
   previewVolume: document.querySelector("#previewVolume"),
   previewVolumeOutput: document.querySelector("#previewVolumeOutput"),
   mergeNotes: document.querySelector("#mergeNotes"),
+  saveDelayBlocks: document.querySelector("#saveDelayBlocks"),
+  saveNoteBlocks: document.querySelector("#saveNoteBlocks"),
+  advancedSaveSummary: document.querySelector("#advancedSaveSummary"),
   autoFollow: document.querySelector("#autoFollow"),
   builderPart: document.querySelector("#builderPart"),
   builderPartHint: document.querySelector("#builderPartHint"),
@@ -81,6 +87,7 @@ const state = {
   stopTimer: null,
   audioTimers: [],
   highlightTimers: [],
+  rollTimers: [],
   toastTimer: null,
   peerConnection: null,
   dataChannel: null,
@@ -220,18 +227,9 @@ function splitDelay(seconds) {
   return segments;
 }
 
-function createPlan() {
-  if (!state.rawNotes.length) return null;
-
-  const speed = Number(elements.tempoScale.value) / 100;
-  const mergeWindow = elements.mergeNotes.checked ? 0.025 : 0.001;
-  const startOffset = Number(elements.startOffset.value);
-  const scaledNotes = state.rawNotes
-    .map((note) => ({ ...note, time: note.sourceTime / speed }))
-    .sort((a, b) => a.time - b.time || a.midi - b.midi);
-
+function groupNotesByStart(notes, mergeWindow) {
   const grouped = [];
-  for (const note of scaledNotes) {
+  for (const note of notes) {
     const last = grouped.at(-1);
     if (!last || note.time - last.sourceTime > mergeWindow) {
       grouped.push({ sourceTime: note.time, notes: [note] });
@@ -242,12 +240,43 @@ function createPlan() {
       last.notes.push(note);
     }
   }
+  return grouped;
+}
+
+function createPlan() {
+  if (!state.rawNotes.length) return null;
+
+  const speed = Number(elements.tempoScale.value) / 100;
+  const baseMergeWindow = elements.mergeNotes.checked ? CHORD_MERGE_WINDOW : STRICT_MERGE_WINDOW;
+  const saveDelayBlocks = elements.saveDelayBlocks?.checked ?? false;
+  const saveNoteBlocks = elements.saveNoteBlocks?.checked ?? false;
+  const mergeWindow = saveDelayBlocks
+    ? Math.max(baseMergeWindow, ADVANCED_DELAY_SAVE_WINDOW)
+    : baseMergeWindow;
+  const startOffset = Number(elements.startOffset.value);
+  const scaledNotes = state.rawNotes
+    .map((note) => ({ ...note, time: note.sourceTime / speed }))
+    .sort((a, b) => a.time - b.time || a.midi - b.midi);
+
+  const grouped = groupNotesByStart(scaledNotes, mergeWindow);
+  const baseGroupedCount = saveDelayBlocks
+    ? groupNotesByStart(scaledNotes, baseMergeWindow).length
+    : grouped.length;
 
   let previousSourceTime = 0;
   let plannedTime = 0;
   let nextDelayId = 1;
   let nextMusicBlockId = 1;
+  const reusedNoteIds = new Map();
   let adjustedGaps = 0;
+  const getMusicBlockId = (midi) => {
+    if (!saveNoteBlocks) return nextMusicBlockId++;
+    if (!reusedNoteIds.has(midi)) {
+      reusedNoteIds.set(midi, nextMusicBlockId);
+      nextMusicBlockId += 1;
+    }
+    return reusedNoteIds.get(midi);
+  };
 
   const events = grouped.map((group, eventIndex) => {
     const requestedDelay =
@@ -269,7 +298,7 @@ function createPlan() {
       .sort((a, b) => a.midi - b.midi)
       .map((note) => ({
         ...note,
-        id: nextMusicBlockId++,
+        id: getMusicBlockId(note.midi),
         name: midiToName(note.midi),
         propertyClicks: note.midi - MIN_NOTE,
       }));
@@ -286,13 +315,19 @@ function createPlan() {
   });
 
   const noteCount = events.reduce((total, event) => total + event.notes.length, 0);
+  const noteBlockCount = saveNoteBlocks ? reusedNoteIds.size : noteCount;
 
   return {
     events,
     speed,
+    saveDelayBlocks,
+    saveNoteBlocks,
+    mergeWindow,
+    savedDelayChains: Math.max(0, baseGroupedCount - grouped.length),
     adjustedGaps,
     noteCount,
-    noteBlockCount: noteCount,
+    noteBlockCount,
+    savedNoteBlocks: Math.max(0, noteCount - noteBlockCount),
     delayCount: nextDelayId - 1,
     duration: plannedTime + NOTE_SUSTAIN,
   };
@@ -352,6 +387,33 @@ function updateBuilderPartHint() {
     `${slice.label}: activations ${firstEvent.id}-${lastEvent.id} of ${state.plan.events.length}.${extra}`;
 }
 
+function updateAdvancedSaveSummary() {
+  if (!elements.advancedSaveSummary) return;
+  const saveDelayBlocks = elements.saveDelayBlocks?.checked ?? false;
+  const saveNoteBlocks = elements.saveNoteBlocks?.checked ?? false;
+
+  if (!state.plan?.events.length) {
+    elements.advancedSaveSummary.textContent = saveDelayBlocks || saveNoteBlocks
+      ? "Load a MIDI to calculate advanced block savings."
+      : "Advanced saving is off. Enable an option here to make a smaller, harder build.";
+    return;
+  }
+
+  const { plan } = state;
+  const parts = [];
+  parts.push(
+    plan.saveDelayBlocks
+      ? `${plan.savedDelayChains.toLocaleString()} nearby start${plan.savedDelayChains === 1 ? "" : "s"} grouped to save Delay chains.`
+      : "Delay saving is off.",
+  );
+  parts.push(
+    plan.saveNoteBlocks
+      ? `${plan.savedNoteBlocks.toLocaleString()} duplicate Music Note block${plan.savedNoteBlocks === 1 ? "" : "s"} saved.`
+      : "Music Note saving is off.",
+  );
+  elements.advancedSaveSummary.textContent = parts.join(" ");
+}
+
 function renderPlan() {
   state.plan = createPlan();
   if (!state.plan) return;
@@ -378,8 +440,19 @@ function renderPlan() {
       `${plan.adjustedGaps.toLocaleString()} gap${plan.adjustedGaps === 1 ? " was" : "s were"} shorter than 0.05s and adjusted to BABFT's minimum Delay.`,
     );
   }
+  if (plan.saveDelayBlocks && plan.savedDelayChains) {
+    notices.push(
+      `Advanced Delay saving grouped nearby starts within ${formatSeconds(plan.mergeWindow)}, which saves Delay chains but changes tiny timing details.`,
+    );
+  }
+  if (plan.saveNoteBlocks && plan.savedNoteBlocks) {
+    notices.push(
+      `Advanced Music Note saving reuses matching pitches, so some Delay outputs bind to existing Music Note blocks.`,
+    );
+  }
   elements.planNotice.textContent = notices.join(" ");
   elements.planNotice.classList.toggle("hidden", notices.length === 0);
+  updateAdvancedSaveSummary();
   renderTimeline();
   renderPianoRoll();
   renderInstructions();
@@ -468,29 +541,53 @@ function renderPianoRoll() {
   resetPianoRoll();
 }
 
+function clearRollTimers() {
+  state.rollTimers.forEach((timer) => window.clearTimeout(timer));
+  state.rollTimers = [];
+}
+
 function resetPianoRoll() {
+  clearRollTimers();
   elements.rollNotes.replaceChildren();
   elements.pianoRoll.classList.remove("playing");
   elements.rollIdle.classList.remove("hidden");
   elements.rollKeys.querySelectorAll(".active").forEach((key) => key.classList.remove("active"));
 }
 
+function createRollTile(note, elapsedInFall = 0) {
+  const tile = document.createElement("span");
+  tile.className = `roll-note${note.name.includes("#") ? " sharp" : ""}`;
+  tile.style.setProperty("--lane", note.midi - MIN_NOTE);
+  tile.style.setProperty("--fall-duration", `${PIANO_ROLL_LEAD_TIME}s`);
+  tile.style.animationDelay = elapsedInFall > 0 ? `${-elapsedInFall}s` : "0s";
+  tile.textContent = note.name;
+  tile.addEventListener("animationend", () => tile.remove(), { once: true });
+  return tile;
+}
+
 function startPianoRoll(elapsed = 0) {
-  const fragment = document.createDocumentFragment();
+  clearRollTimers();
+  elements.rollNotes.replaceChildren();
+  const currentTime = Math.max(0, elapsed);
 
   for (const event of getBuilderSlice().events) {
     for (const note of event.notes) {
-      const tile = document.createElement("span");
-      tile.className = `roll-note${note.name.includes("#") ? " sharp" : ""}`;
-      tile.style.setProperty("--lane", note.midi - MIN_NOTE);
-      tile.style.animationDelay = `${event.plannedTime - PIANO_ROLL_LEAD_TIME - elapsed}s`;
-      tile.style.animationDuration = `${PIANO_ROLL_LEAD_TIME}s`;
-      tile.textContent = note.name;
-      fragment.append(tile);
+      const fallStartTime = event.plannedTime - PIANO_ROLL_LEAD_TIME;
+      const elapsedInFall = currentTime - fallStartTime;
+      if (elapsedInFall >= PIANO_ROLL_LEAD_TIME) continue;
+
+      const appendTile = () => {
+        elements.rollNotes.append(createRollTile(note, Math.max(0, elapsedInFall)));
+      };
+
+      if (elapsedInFall >= 0) {
+        appendTile();
+      } else {
+        state.rollTimers.push(window.setTimeout(appendTile, Math.abs(elapsedInFall) * 1000));
+      }
     }
   }
 
-  elements.rollNotes.replaceChildren(fragment);
   elements.rollIdle.classList.add("hidden");
   elements.pianoRoll.classList.add("playing");
 }
@@ -601,7 +698,7 @@ function renderInstructions() {
       <div class="delay-time-list">
         ${event.delays.map((delay) => `<span><i></i>Delay ${delay.id}<b>${formatSeconds(delay.duration)}</b></span>`).join("")}
       </div>
-      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
+      <p>Set the Delay times above with the Property Tool. Bind each Delay to the next Delay shown. The final Delay activates ${state.plan.saveNoteBlocks ? "existing " : ""}${noteLabels}${next ? ` and transfers the signal to Delay ${next}` : ""}.</p>
     `;
 
     const icon = document.createElement("div");
@@ -660,7 +757,12 @@ function buildInstructionsText() {
     `Playable activations: ${state.plan.noteCount} | Music Note blocks: ${state.plan.noteBlockCount} | Delay blocks: ${state.plan.delayCount} | Length: ${formatClock(state.plan.duration)}`,
     `Section: ${slice.label}`,
     "Wiring: Delay -> Delay chaining is supported and used for longer waits.",
-    "Music Notes: place a separate Music Note block for every activation.",
+    state.plan.saveDelayBlocks
+      ? `Advanced Delay saving: nearby starts within ${formatSeconds(state.plan.mergeWindow)} are grouped into one Delay chain. This saves blocks but makes the timing less exact.`
+      : "Delay saving: OFF. Each activation keeps its own Delay chain.",
+    state.plan.saveNoteBlocks
+      ? "Advanced Music Note saving: place one Music Note block per pitch and reuse it for matching notes."
+      : "Music Notes: place a separate Music Note block for every activation.",
     "",
   ];
 
@@ -698,7 +800,12 @@ function buildNotesText() {
   const lines = [
     "BABFT MUSIC NOTE BLOCKS",
     `Section: ${slice.label}`,
-    "This list follows the separate Music Note blocks in the build steps.",
+    state.plan.saveNoteBlocks
+      ? "Place each block once. Reuse it by binding every matching Delay output to it."
+      : "This list follows the separate Music Note blocks in the build steps.",
+    state.plan.saveDelayBlocks
+      ? `Delay saving is on: some nearby notes share one activation within ${formatSeconds(state.plan.mergeWindow)}.`
+      : "Delay saving is off: note timings follow the normal activation list.",
     "",
   ];
   for (const block of collectMusicBlocks(slice.events)) {
@@ -852,6 +959,8 @@ function currentPlanPayload() {
       startOffset: elements.startOffset.value,
       tempoScale: elements.tempoScale.value,
       mergeNotes: elements.mergeNotes.checked,
+      saveDelayBlocks: elements.saveDelayBlocks.checked,
+      saveNoteBlocks: elements.saveNoteBlocks.checked,
       builderPart: elements.builderPart.value,
     },
     notes: state.rawNotes.map((note) => ({
@@ -890,6 +999,8 @@ function applyMultiplayerPlan(message) {
   elements.startOffset.value = message.settings?.startOffset ?? elements.startOffset.value;
   elements.tempoScale.value = message.settings?.tempoScale ?? elements.tempoScale.value;
   elements.mergeNotes.checked = message.settings?.mergeNotes ?? elements.mergeNotes.checked;
+  elements.saveDelayBlocks.checked = message.settings?.saveDelayBlocks ?? elements.saveDelayBlocks.checked;
+  elements.saveNoteBlocks.checked = message.settings?.saveNoteBlocks ?? elements.saveNoteBlocks.checked;
   elements.builderPart.value = message.settings?.builderPart ?? elements.builderPart.value;
   elements.startOffsetOutput.value = formatSeconds(Number(elements.startOffset.value));
   elements.tempoScaleOutput.value = `${elements.tempoScale.value}%`;
@@ -1102,6 +1213,7 @@ function removeMidi() {
   elements.stopButton.disabled = true;
   updateBuildProgress();
   updateBuilderPartHint();
+  updateAdvancedSaveSummary();
   showToast("MIDI removed from browser memory.");
 }
 
@@ -1314,6 +1426,8 @@ function rerenderFromSettings() {
   stopPreview();
   if (state.rawNotes.length) {
     renderPlan();
+  } else {
+    updateAdvancedSaveSummary();
   }
 }
 
@@ -1368,6 +1482,8 @@ elements.startOffset.addEventListener("input", rerenderFromSettings);
 elements.tempoScale.addEventListener("input", rerenderFromSettings);
 elements.previewVolume.addEventListener("input", updatePreviewVolume);
 elements.mergeNotes.addEventListener("change", rerenderFromSettings);
+elements.saveDelayBlocks.addEventListener("change", rerenderFromSettings);
+elements.saveNoteBlocks.addEventListener("change", rerenderFromSettings);
 elements.builderPart.addEventListener("change", handleBuilderPartChange);
 elements.hostRoom.addEventListener("click", hostMultiplayerRoom);
 elements.joinRoom.addEventListener("click", joinMultiplayerRoom);
@@ -1401,5 +1517,6 @@ renderKeyboard();
 setupScrollReveal();
 updateBuildProgress();
 updateBuilderPartHint();
+updateAdvancedSaveSummary();
 updatePreviewVolume();
 rerenderFromSettings();
