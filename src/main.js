@@ -414,15 +414,27 @@ function updateAdvancedSaveSummary() {
   elements.advancedSaveSummary.textContent = parts.join(" ");
 }
 
+function updateSliceStats() {
+  const slice = getBuilderSlice();
+  const sliceEvents = slice.events;
+  const sliceNoteCount = sliceEvents.reduce((total, event) => total + event.notes.length, 0);
+  const sliceMusicBlocks = collectMusicBlocks(sliceEvents);
+  const sliceBlockCount = sliceMusicBlocks.length;
+  const sliceDelayCount = sliceEvents.reduce((total, event) => total + event.delays.length, 0);
+  const lastEvent = sliceEvents.at(-1);
+  const sliceDuration = lastEvent ? lastEvent.plannedTime + NOTE_SUSTAIN : 0;
+
+  elements.statNotes.textContent = sliceNoteCount.toLocaleString();
+  elements.statBlocks.textContent = sliceBlockCount.toLocaleString();
+  elements.statDelays.textContent = sliceDelayCount.toLocaleString();
+  elements.statDuration.textContent = formatClock(sliceDuration);
+}
+
 function renderPlan() {
   state.plan = createPlan();
   if (!state.plan) return;
 
   const { plan } = state;
-  elements.statNotes.textContent = plan.noteCount.toLocaleString();
-  elements.statBlocks.textContent = plan.noteBlockCount.toLocaleString();
-  elements.statDelays.textContent = plan.delayCount.toLocaleString();
-  elements.statDuration.textContent = formatClock(plan.duration);
 
   const notices = [];
   if (state.analysisMeta?.skippedPercussionNotes) {
@@ -453,6 +465,7 @@ function renderPlan() {
   elements.planNotice.textContent = notices.join(" ");
   elements.planNotice.classList.toggle("hidden", notices.length === 0);
   updateAdvancedSaveSummary();
+  updateSliceStats();
   renderTimeline();
   renderPianoRoll();
   renderInstructions();
@@ -465,7 +478,7 @@ function renderPlan() {
 }
 
 function renderTimeline() {
-  const displayEvents = state.plan.events;
+  const displayEvents = getBuilderSlice().events;
   const fragment = document.createDocumentFragment();
 
   for (const event of displayEvents) {
@@ -1315,7 +1328,7 @@ async function previewPlan({ broadcast = true, delayMs = 0 } = {}) {
     state.previewStartedAt = performance.now();
     startPianoRoll();
 
-    state.plan.events.forEach((event) => {
+    getBuilderSlice().events.forEach((event) => {
       state.audioTimers.push(
         window.setTimeout(() => {
           event.notes.forEach((note) => {
@@ -1434,6 +1447,8 @@ function rerenderFromSettings() {
 function handleBuilderPartChange() {
   stopPreview();
   if (state.plan) {
+    updateSliceStats();
+    renderTimeline();
     renderInstructions();
     renderNoteTable();
   }
