@@ -677,7 +677,7 @@ function renderInstructions() {
       noteStep.className = "music-notes-step";
 
       const noteChips = musicBlocks.map((block) =>
-        `<span class="music-note-chip"><img src="/assets/music-note.png" alt="" /><strong>${block.name}</strong><small>${block.propertyClicks === 0 ? "default" : `+${block.propertyClicks}`}</small></span>`
+        `<span class="music-note-chip"><img src="/assets/music-note.png" alt="" /><strong>${block.name}</strong></span>`
       ).join("");
 
       noteStep.innerHTML = `
@@ -810,7 +810,7 @@ function buildInstructionsText() {
       lines.push(`PLACE THESE ${musicBlocks.length} MUSIC NOTE BLOCK${musicBlocks.length === 1 ? "" : "S"} FIRST:`);
       for (const block of musicBlocks) {
         lines.push(
-          `  Music Note ${block.id}: ${block.name} (${block.propertyClicks === 0 ? "default F#3" : `increment ${block.propertyClicks}× from F#3`})`,
+          `  Music Note ${block.id}: ${block.name}`,
         );
       }
       lines.push("");
