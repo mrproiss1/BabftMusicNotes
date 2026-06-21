@@ -670,6 +670,31 @@ function renderInstructions() {
   const fragment = document.createDocumentFragment();
   const slice = getBuilderSlice();
 
+  if (state.plan.saveNoteBlocks) {
+    const musicBlocks = collectMusicBlocks(slice.events);
+    if (musicBlocks.length) {
+      const noteStep = document.createElement("li");
+      noteStep.className = "music-notes-step";
+
+      const noteChips = musicBlocks.map((block) =>
+        `<span class="music-note-chip"><img src="/assets/music-note.png" alt="" /><strong>${block.name}</strong><small>${block.propertyClicks === 0 ? "default" : `+${block.propertyClicks}`}</small><em>${block.uses}×</em></span>`
+      ).join("");
+
+      noteStep.innerHTML = `
+        <div class="instruction-icon" aria-hidden="true"><img src="/assets/music-note.png" alt="" /></div>
+        <div class="instruction-content">
+          <div class="instruction-title">
+            <span>Place first</span>
+            <strong>Place ${musicBlocks.length} Music Note block${musicBlocks.length === 1 ? "" : "s"}</strong>
+          </div>
+          <p>Save Music Notes is on. Place one block per pitch and set each with the Property Tool. These blocks will be reused by multiple Delay outputs.</p>
+          <div class="music-note-grid">${noteChips}</div>
+        </div>
+      `;
+      fragment.append(noteStep);
+    }
+  }
+
   const trigger = document.createElement("li");
   trigger.className = "trigger-step";
   trigger.innerHTML =
@@ -778,6 +803,19 @@ function buildInstructionsText() {
       : "Music Notes: place a separate Music Note block for every activation.",
     "",
   ];
+
+  if (state.plan.saveNoteBlocks) {
+    const musicBlocks = collectMusicBlocks(slice.events);
+    if (musicBlocks.length) {
+      lines.push(`PLACE THESE ${musicBlocks.length} MUSIC NOTE BLOCK${musicBlocks.length === 1 ? "" : "S"} FIRST:`);
+      for (const block of musicBlocks) {
+        lines.push(
+          `  Music Note ${block.id}: ${block.name} (${block.propertyClicks === 0 ? "default F#3" : `increment ${block.propertyClicks}× from F#3`}) — used ${block.uses}× in this section`,
+        );
+      }
+      lines.push("");
+    }
+  }
 
   if (slice.startIndex === 0) {
     lines.push("1. Place a Button, Pilot Seat, or Car Seat and bind it to Delay 1. Delay blocks can then bind into other Delay blocks.");
